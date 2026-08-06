@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aloud</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --surface: #ffffff;
+    --text: #2b2a27;
+    --text-dim: #77746c;
+    --accent: #b4552d;
+    --accent-soft: #b4552d22;
+    --highlight: #f4e3b2;
+    --border: #e3ded2;
+    --shadow: 0 1px 3px rgba(40, 30, 10, 0.08), 0 8px 24px rgba(40, 30, 10, 0.06);
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #191817;
+      --surface: #232120;
+      --text: #e8e4dc;
+      --text-dim: #98938a;
+      --accent: #e07a4a;
+      --accent-soft: #e07a4a2b;
+      --highlight: #4a3b1c;
+      --border: #363330;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* --- header ------------------------------------------------------ */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 650;
+    font-size: 1.1rem;
+    letter-spacing: 0.01em;
+    margin-right: auto;
+  }
+  .brand .logo {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-size: 1rem;
+  }
+  header label { color: var(--text-dim); font-size: 0.85rem; }
+  select, button {
+    font: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+  }
+  select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  .font-controls { display: flex; gap: 4px; }
+  .font-controls button { padding: 7px 10px; }
+
+  /* --- main / reading pane ---------------------------------------- */
+  main { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+  .pane {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 28px 24px 140px;
+  }
+  #dropzone {
+    margin-top: 8vh;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 64px 32px;
+    text-align: center;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  #dropzone.dragover, #dropzone:hover { border-color: var(--accent); background: var(--accent-soft); }
+  #dropzone .big { font-size: 2.4rem; margin-bottom: 12px; }
+  #dropzone strong { color: var(--text); font-size: 1.05rem; }
+  #dropzone p { margin: 6px 0 0; font-size: 0.9rem; }
+
+  #article {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 40px 44px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: var(--reading-size, 1.06rem);
+    line-height: 1.75;
+  }
+  #article h3 {
+    font-family: system-ui, sans-serif;
+    font-size: 1.15em;
+    margin: 1.6em 0 0.5em;
+  }
+  #article h3:first-child { margin-top: 0; }
+  #article p { margin: 0 0 1em; }
+  .chunk { cursor: pointer; border-radius: 4px; padding: 1px 2px; transition: background 0.2s; }
+  .chunk:hover { background: var(--accent-soft); }
+  .chunk.active { background: var(--highlight); box-shadow: 0 0 0 3px var(--highlight); }
+  .doc-name {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 14px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+  .doc-name button { padding: 4px 10px; font-size: 0.85rem; }
+
+  /* --- voice panel -------------------------------------------------- */
+  #voice-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  #voice-panel h2 { margin: 0; font-size: 1.05rem; }
+  #voice-panel .hint { color: var(--text-dim); font-size: 0.82rem; margin: 4px 0 12px; }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .panel-head button { padding: 4px 10px; font-size: 0.9rem; }
+  #voice-search {
+    width: 100%;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+  }
+  #voice-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #voice-list { max-height: 40vh; overflow-y: auto; }
+  .voice-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 4px;
+    border-top: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .voice-row .vid { flex: 1; font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 0.83rem; overflow-wrap: anywhere; }
+  .voice-row .meta { color: var(--text-dim); font-size: 0.8rem; white-space: nowrap; }
+  .voice-row button { padding: 4px 12px; font-size: 0.85rem; }
+  .voice-row .installed-mark { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
+
+  /* --- paste panel -------------------------------------------------- */
+  #paste-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  #paste-panel h2 { margin: 0 0 10px; font-size: 1.05rem; }
+  #paste-text {
+    width: 100%;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    resize: vertical;
+    margin-bottom: 10px;
+  }
+  #paste-text:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .paste-actions { display: flex; gap: 8px; }
+
+  /* --- player bar --------------------------------------------------- */
+  footer {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    padding: 10px 20px 12px;
+  }
+  .progress {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .progress > div {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.25s;
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .controls .transport { display: flex; gap: 6px; }
+  .transport button { width: 44px; height: 40px; font-size: 1.05rem; padding: 0; }
+  .speed {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-left: 6px;
+  }
+  .speed input[type="range"] { accent-color: var(--accent); width: 130px; }
+  .speed .value { min-width: 3ch; color: var(--text); font-variant-numeric: tabular-nums; }
+  .spacer { flex: 1; }
+  #status {
+    width: 100%;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    margin-top: 6px;
+    min-height: 1.1em;
+  }
+  #status.error { color: #c0392b; }
+  @media (prefers-color-scheme: dark) { #status.error { color: #e57368; } }
+  input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="logo">&#128266;</span> Aloud</div>
+  <label for="voice">Voice</label>
+  <select id="voice" title="Piper voice model (from the models/ folder)"></select>
+  <button id="add-voice" title="Download more free voices (many languages)">&#65291; Add voice</button>
+  <div class="font-controls" title="Reading text size">
+    <button id="font-dec" aria-label="Smaller text">A&#8722;</button>
+    <button id="font-inc" aria-label="Larger text">A+</button>
+  </div>
+  <button class="primary" id="open-btn">Open&#8230;</button>
+</header>
+
+<main>
+  <div class="pane">
+    <div id="voice-panel">
+      <div class="panel-head">
+        <h2>Add a voice</h2>
+        <button id="voice-close" aria-label="Close" title="Close (Esc)">&#10005;</button>
+      </div>
+      <p class="hint">
+        Free, MIT-licensed Piper voices in dozens of languages, downloaded once
+        from the public rhasspy/piper-voices repository (internet needed only
+        for the download &#8212; reading stays fully offline).
+      </p>
+      <input id="voice-search" type="search"
+             placeholder="Search by language or name &#8212; e.g. german, en_GB, ryan&#8230;">
+      <div id="voice-list"><p class="hint">Loading catalog&#8230;</p></div>
+    </div>
+    <div id="dropzone">
+      <div class="big">&#128218;</div>
+      <strong>Drop a PDF, EPUB, TXT, DOCX, or HTML file here</strong>
+      <p>or click to browse your files</p>
+      <p><button id="paste-open">&#9998; Or paste text instead</button></p>
+    </div>
+    <div id="paste-panel">
+      <h2>Read pasted text</h2>
+      <textarea id="paste-text" rows="9"
+                placeholder="Paste or type any text here&#8230;"></textarea>
+      <div class="paste-actions">
+        <button class="primary" id="paste-read">&#9654; Read this</button>
+        <button id="paste-close">Cancel</button>
+      </div>
+    </div>
+    <div class="doc-name" id="doc-name-row">
+      <span id="doc-name"></span>
+      <button id="close-doc">Close</button>
+    </div>
+    <article id="article"></article>
+  </div>
+</main>
+
+<footer>
+  <div class="progress"><div id="progress-bar"></div></div>
+  <div class="controls">
+    <div class="transport">
+      <button id="prev" title="Previous sentence (&#8592;)" disabled>&#9198;</button>
+      <button id="play" title="Play (Space)" disabled>&#9654;</button>
+      <button id="pause" title="Pause (Space)" disabled>&#10074;&#10074;</button>
+      <button id="stop" title="Stop" disabled>&#9632;</button>
+      <button id="next" title="Next sentence (&#8594;)" disabled>&#9197;</button>
+    </div>
+    <div class="speed">
+      <label for="speed">Speed</label>
+      <input type="range" id="speed" min="0.5" max="2" step="0.1" value="1">
+      <span class="value" id="speed-value">1.0x</span>
+    </div>
+    <div class="speed">
+      <label for="sleep">Sleep</label>
+      <select id="sleep" title="Pause playback automatically after this long">
+        <option value="0">Off</option>
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+        <option value="45">45 min</option>
+        <option value="60">60 min</option>
+      </select>
+    </div>
+    <div class="spacer"></div>
+    <button id="export-wav" disabled>&#11015; Export WAV</button>
+    <button id="export-mp3" disabled hidden>&#11015; Export MP3</button>
+    <button id="export-cancel" hidden>&#10005; Cancel export</button>
+    <div id="status">Loading&#8230;</div>
+  </div>
+</footer>
+
+<input type="file" id="file-input" accept=".pdf,.txt,.docx,.epub,.html,.htm">
+
+<script>
+"use strict";
+const TOKEN = "__ALOUD_TOKEN__";
+
+const $ = (id) => document.getElementById(id);
+const els = {
+  voice: $("voice"), open: $("open-btn"), dropzone: $("dropzone"),
+  article: $("article"), docNameRow: $("doc-name-row"), docName: $("doc-name"),
+  closeDoc: $("close-doc"), play: $("play"), pause: $("pause"), stop: $("stop"),
+  speed: $("speed"), speedValue: $("speed-value"), exportWav: $("export-wav"),
+  exportMp3: $("export-mp3"), status: $("status"), progress: $("progress-bar"),
+  fileInput: $("file-input"), fontDec: $("font-dec"), fontInc: $("font-inc"),
+  addVoice: $("add-voice"), voicePanel: $("voice-panel"),
+  voiceSearch: $("voice-search"), voiceList: $("voice-list"),
+  voiceClose: $("voice-close"),
+  prev: $("prev"), next: $("next"), sleep: $("sleep"),
+  exportCancel: $("export-cancel"), pasteOpen: $("paste-open"),
+  pastePanel: $("paste-panel"), pasteText: $("paste-text"),
+  pasteRead: $("paste-read"), pasteClose: $("paste-close"),
+};
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// --- api helpers ------------------------------------------------------
+async function api(path, options = {}) {
+  options.headers = Object.assign({ "X-Aloud-Token": TOKEN }, options.headers);
+  const response = await fetch(path, options);
+  if (!response.ok) {
+    let message = response.statusText;
+    try { message = (await response.json()).error || message; } catch (e) { /* keep statusText */ }
+    throw new Error(message);
+  }
+  return response;
+}
+const apiJson = async (path, options) => (await api(path, options)).json();
+
+function setStatus(message, isError = false) {
+  els.status.textContent = message;
+  els.status.classList.toggle("error", isError);
+}
+
+// --- persistent settings & positions (localStorage) -------------------
+const SETTINGS_KEY = "aloud-settings";
+const POSITIONS_KEY = "aloud-positions";
+const MAX_REMEMBERED_DOCS = 50;
+
+function loadStored(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  catch (e) { return fallback; }
+}
+function store(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* private mode etc. */ }
+}
+
+const settings = loadStored(SETTINGS_KEY, {});
+function saveSettings() {
+  settings.speed = speedValue();
+  settings.voice = els.voice.value;
+  settings.fontSize = readingSize;
+  store(SETTINGS_KEY, settings);
+}
+
+let currentDocKey = null; // "<name>|<chunk count>" - identifies a document across sessions
+function savePosition(index) {
+  if (!currentDocKey) return;
+  const positions = loadStored(POSITIONS_KEY, {});
+  if (index > 0) positions[currentDocKey] = { index, t: Date.now() };
+  else delete positions[currentDocKey];
+  const keys = Object.keys(positions);
+  if (keys.length > MAX_REMEMBERED_DOCS) {
+    keys.sort((a, b) => positions[a].t - positions[b].t);
+    for (const stale of keys.slice(0, keys.length - MAX_REMEMBERED_DOCS)) delete positions[stale];
+  }
+  store(POSITIONS_KEY, positions);
+}
+function savedPosition() {
+  const entry = loadStored(POSITIONS_KEY, {})[currentDocKey];
+  return entry ? entry.index : 0;
+}
+
+// --- app state --------------------------------------------------------
+let chunkEls = [];        // span per chunk, reading order
+let chunksTotal = 0;
+
+// Listening-time estimate: characters ahead x observed synthesis rate.
+let chunkChars = [];      // per-chunk character counts
+let charsPrefix = [];     // characters before chunk i
+let totalChars = 0;
+let countedChunks = new Set();
+const listenRate = { seconds: 0, chars: 0 };
+const DEFAULT_SEC_PER_CHAR = 0.045; // until enough real audio is observed
+
+function secPerChar() {
+  return listenRate.chars >= 120 ? listenRate.seconds / listenRate.chars : DEFAULT_SEC_PER_CHAR;
+}
+function listenTimeLabel(chars) {
+  const seconds = (chars * secPerChar()) / speedValue();
+  if (seconds < 60) return "under a minute";
+  const minutes = Math.round(seconds / 60);
+  return minutes < 60 ? `~${minutes} min` : `~${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+function remainingLabel(fromIndex) {
+  return `${listenTimeLabel(totalChars - (charsPrefix[fromIndex] || 0))} left`;
+}
+
+const player = {
+  audio: new Audio(),
+  state: "idle",          // idle | playing | paused | finished
+  index: 0,
+  blobCache: new Map(),   // index -> object URL (cleared per voice/doc change)
+  pending: new Map(),     // index -> in-flight fetch promise
+};
+player.audio.addEventListener("loadedmetadata", () => {
+  const index = player.index;
+  if (countedChunks.has(index) || !isFinite(player.audio.duration)) return;
+  if (!chunkChars[index]) return;
+  countedChunks.add(index);
+  listenRate.seconds += player.audio.duration;
+  listenRate.chars += chunkChars[index];
+});
+player.audio.addEventListener("ended", () => {
+  if (player.state !== "playing") return;
+  if (player.index + 1 < chunksTotal) {
+    playChunk(player.index + 1);
+  } else {
+    savePosition(0); // finished: next open starts from the top
+    stopPlayback("Finished.");
+  }
+});
+
+function speedValue() { return parseFloat(els.speed.value); }
+
+function clearBlobCache() {
+  for (const url of player.blobCache.values()) URL.revokeObjectURL(url);
+  player.blobCache.clear();
+  player.pending.clear();
+}
+
+function fetchChunkUrl(index) {
+  if (player.blobCache.has(index)) return Promise.resolve(player.blobCache.get(index));
+  if (player.pending.has(index)) return player.pending.get(index);
+  const voice = encodeURIComponent(els.voice.value || "");
+  const promise = api(`/api/audio/${index}?voice=${voice}`)
+    .then((r) => r.blob())
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      player.blobCache.set(index, url);
+      player.pending.delete(index);
+      return url;
+    })
+    .catch((err) => { player.pending.delete(index); throw err; });
+  player.pending.set(index, promise);
+  return promise;
+}
+
+async function playChunk(index) {
+  player.index = index;
+  highlight(index);
+  savePosition(index);
+  setStatus(`Reading sentence ${index + 1} of ${chunksTotal} · ${remainingLabel(index)}`);
+  els.progress.style.width = `${((index + 1) / chunksTotal) * 100}%`;
+  try {
+    const url = await fetchChunkUrl(index);
+    if (player.state !== "playing" || player.index !== index) return; // stale
+    player.audio.src = url;
+    player.audio.playbackRate = speedValue();
+    await player.audio.play();
+    if (index + 1 < chunksTotal) fetchChunkUrl(index + 1).catch(() => {});
+  } catch (err) {
+    stopPlayback(null);
+    setStatus(err.message, true);
+  }
+}
+
+function updateTransport() {
+  const hasDoc = chunksTotal > 0;
+  els.play.disabled = !hasDoc || player.state === "playing";
+  els.pause.disabled = player.state !== "playing" && player.state !== "paused";
+  els.stop.disabled = player.state === "idle" || player.state === "finished";
+  els.prev.disabled = !hasDoc;
+  els.next.disabled = !hasDoc;
+  els.exportWav.disabled = !hasDoc;
+  els.exportMp3.disabled = !hasDoc;
+}
+
+function skipSentence(delta) {
+  if (!chunksTotal) return;
+  const target = Math.min(chunksTotal - 1, Math.max(0, player.index + delta));
+  if (player.state === "playing" || player.state === "paused") {
+    startPlayback(target);
+  } else {
+    player.index = target;
+    highlight(target);
+    savePosition(target);
+    setStatus(`Sentence ${target + 1} of ${chunksTotal} — press Play.`);
+  }
+}
+
+function startPlayback(fromIndex) {
+  if (!chunksTotal) return;
+  player.state = "playing";
+  updateTransport();
+  playChunk(fromIndex);
+}
+
+function pauseOrResume() {
+  if (player.state === "playing") {
+    player.audio.pause();
+    player.state = "paused";
+    setStatus("Paused.");
+  } else if (player.state === "paused") {
+    player.state = "playing";
+    player.audio.playbackRate = speedValue();
+    player.audio.play().catch((err) => setStatus(err.message, true));
+    setStatus(`Reading sentence ${player.index + 1} of ${chunksTotal} · ${remainingLabel(player.index)}`);
+  }
+  updateTransport();
+}
+
+function stopPlayback(message = "Ready.") {
+  player.audio.pause();
+  player.audio.removeAttribute("src");
+  player.state = "idle";
+  player.index = 0;
+  highlight(-1);
+  els.progress.style.width = "0%";
+  updateTransport();
+  if (message) setStatus(message);
+}
+
+function highlight(index) {
+  chunkEls.forEach((el, i) => el.classList.toggle("active", i === index));
+  if (index >= 0 && chunkEls[index]) {
+    chunkEls[index].scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+}
+
+// --- document loading -------------------------------------------------
+function renderDocument(doc) {
+  els.article.textContent = "";
+  chunkEls = [];
+  let index = 0;
+  for (const block of doc.blocks) {
+    const container = document.createElement(block.kind === "heading" ? "h3" : "p");
+    block.chunks.forEach((chunk, i) => {
+      const span = document.createElement("span");
+      span.className = "chunk";
+      span.textContent = chunk;
+      span.title = "Click to read from here";
+      const myIndex = index;
+      span.addEventListener("click", () => startPlayback(myIndex));
+      container.appendChild(span);
+      if (i < block.chunks.length - 1) container.appendChild(document.createTextNode(" "));
+      chunkEls.push(span);
+      index += 1;
+    });
+    els.article.appendChild(container);
+  }
+  chunksTotal = doc.chunks_total ?? chunkEls.length;
+  chunkChars = chunkEls.map((el) => el.textContent.length);
+  charsPrefix = [];
+  totalChars = 0;
+  for (const chars of chunkChars) {
+    charsPrefix.push(totalChars);
+    totalChars += chars;
+  }
+  countedChunks = new Set();
+  els.docName.textContent =
+    `${doc.name} — ${chunksTotal} sentences · ${listenTimeLabel(totalChars)} listen`;
+  els.dropzone.style.display = "none";
+  els.docNameRow.style.display = "flex";
+  els.article.style.display = "block";
+  stopPlayback(`Loaded ${doc.name}.`);
+
+  currentDocKey = `${doc.name}|${chunksTotal}`;
+  const resumeAt = savedPosition();
+  if (resumeAt > 0 && resumeAt < chunksTotal) {
+    player.index = resumeAt;
+    highlight(resumeAt);
+    setStatus(`Resuming at sentence ${resumeAt + 1} of ${chunksTotal} — press Play.`);
+  }
+}
+
+async function openFile(file) {
+  stopPlayback(null);
+  clearBlobCache();
+  currentDocKey = null;
+  setStatus(`Opening ${file.name}…`);
+  try {
+    const doc = await apiJson(`/api/open?name=${encodeURIComponent(file.name)}`, {
+      method: "POST",
+      body: file,
+    });
+    renderDocument(doc);
+  } catch (err) {
+    setStatus(err.message, true);
+    updateTransport();
+  }
+}
+
+async function openPastedText() {
+  const text = els.pasteText.value;
+  if (!text.trim()) {
+    setStatus("Paste some text first.", true);
+    return;
+  }
+  stopPlayback(null);
+  clearBlobCache();
+  currentDocKey = null;
+  setStatus("Preparing pasted text…");
+  try {
+    const doc = await apiJson("/api/open-text", { method: "POST", body: text });
+    els.pastePanel.style.display = "none";
+    renderDocument(doc);
+  } catch (err) {
+    setStatus(err.message, true);
+    updateTransport();
+  }
+}
+
+function closeDocument() {
+  stopPlayback(null);
+  clearBlobCache();
+  chunkEls = [];
+  chunksTotal = 0;
+  chunkChars = [];
+  charsPrefix = [];
+  totalChars = 0;
+  countedChunks = new Set();
+  currentDocKey = null;
+  els.article.style.display = "none";
+  els.docNameRow.style.display = "none";
+  els.dropzone.style.display = "block";
+  updateTransport();
+  setStatus("Ready.");
+}
+
+// --- voice catalog / download -----------------------------------------
+let catalog = null;
+
+function populateVoices(voiceNames) {
+  const previous = els.voice.value;
+  els.voice.textContent = "";
+  if (voiceNames.length) {
+    for (const name of voiceNames) {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name.replace(/\.onnx$/, "");
+      els.voice.appendChild(option);
+    }
+    const wanted = previous || settings.voice;
+    if (wanted && [...els.voice.options].some((o) => o.value === wanted)) {
+      els.voice.value = wanted;
+    }
+  } else {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "(no voice — click “＋ Add voice”)";
+    els.voice.appendChild(option);
+  }
+}
+
+async function loadCatalog() {
+  try {
+    const data = await apiJson("/api/voices/catalog");
+    catalog = data.voices;
+    renderCatalog();
+  } catch (err) {
+    els.voiceList.textContent = "";
+    const p = document.createElement("p");
+    p.className = "hint";
+    p.textContent = `Could not load the catalog: ${err.message}`;
+    els.voiceList.appendChild(p);
+  }
+}
+
+function renderCatalog() {
+  if (!catalog) return;
+  const needle = els.voiceSearch.value.trim().toLowerCase();
+  els.voiceList.textContent = "";
+  let shown = 0;
+  for (const voice of catalog) {
+    const haystack = `${voice.id} ${voice.language} ${voice.language_code}`.toLowerCase();
+    if (needle && !haystack.includes(needle)) continue;
+    if (shown >= 200) break; // search narrows the rest
+    shown += 1;
+
+    const row = document.createElement("div");
+    row.className = "voice-row";
+    const vid = document.createElement("span");
+    vid.className = "vid";
+    vid.textContent = voice.id;
+    const meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = `${voice.language} · ${voice.quality}` +
+      (voice.size_mb ? ` · ${voice.size_mb} MB` : "");
+    row.append(vid, meta);
+
+    if (voice.installed) {
+      const mark = document.createElement("span");
+      mark.className = "installed-mark";
+      mark.textContent = "installed";
+      row.appendChild(mark);
+    } else {
+      const btn = document.createElement("button");
+      btn.textContent = "Download";
+      btn.addEventListener("click", () => downloadVoice(voice, btn));
+      row.appendChild(btn);
+    }
+    els.voiceList.appendChild(row);
+  }
+  if (!shown) {
+    const p = document.createElement("p");
+    p.className = "hint";
+    p.textContent = "No voices match that search.";
+    els.voiceList.appendChild(p);
+  }
+}
+
+async function downloadVoice(voice, button) {
+  button.disabled = true;
+  button.textContent = "Downloading…";
+  try {
+    await api("/api/voices/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: voice.id }),
+    });
+    for (;;) {
+      await sleep(500);
+      const status = await apiJson("/api/voices/download/status");
+      if (status.state === "running") {
+        const mb = Math.round(status.received / 1048576);
+        const pct = status.total ? ` ${Math.round((status.received / status.total) * 100)}%` : "";
+        setStatus(`Downloading ${status.file || voice.id}…${pct} (${mb} MB)`);
+        if (status.total) els.progress.style.width = `${(status.received / status.total) * 100}%`;
+      } else if (status.state === "done") {
+        voice.installed = true;
+        renderCatalog();
+        const state = await apiJson("/api/state");
+        populateVoices(state.voices);
+        const fileName = `${voice.id}.onnx`;
+        if ([...els.voice.options].some((o) => o.value === fileName)) {
+          els.voice.value = fileName;
+          clearBlobCache();
+        }
+        saveSettings();
+        setStatus(`Voice ${voice.id} installed and selected.`);
+        break;
+      } else {
+        setStatus(status.error || "Voice download failed.", true);
+        button.disabled = false;
+        button.textContent = "Download";
+        break;
+      }
+    }
+  } catch (err) {
+    setStatus(err.message, true);
+    button.disabled = false;
+    button.textContent = "Download";
+  }
+  els.progress.style.width = "0%";
+}
+
+// --- export -----------------------------------------------------------
+let exportRunning = false;
+
+async function runExport(fmt) {
+  if (exportRunning) return;
+  exportRunning = true;
+  els.exportWav.disabled = true;
+  els.exportMp3.disabled = true;
+  els.exportCancel.hidden = false;
+  try {
+    await api("/api/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fmt, voice: els.voice.value || "", speed: speedValue() }),
+    });
+    setStatus(`Exporting ${fmt.toUpperCase()}…`);
+    for (;;) {
+      await sleep(400);
+      const status = await apiJson("/api/export/status");
+      if (status.state === "running") {
+        if (status.total) {
+          setStatus(`Exporting ${fmt.toUpperCase()}… ${status.index}/${status.total}`);
+          els.progress.style.width = `${(status.index / status.total) * 100}%`;
+        }
+      } else if (status.state === "done") {
+        const response = await api("/api/export/file");
+        const disposition = response.headers.get("Content-Disposition") || "";
+        const match = disposition.match(/filename="([^"]+)"/);
+        const blob = await response.blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = match ? match[1] : `narration.${fmt}`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        const seconds = status.result ? status.result.duration_sec.toFixed(1) : "?";
+        setStatus(`Exported ${link.download} (${seconds}s of audio).`);
+        break;
+      } else if (status.state === "cancelled") {
+        setStatus("Export cancelled.");
+        break;
+      } else if (status.state === "error") {
+        setStatus(status.error || "Export failed.", true);
+        break;
+      } else {
+        break;
+      }
+    }
+  } catch (err) {
+    setStatus(err.message, true);
+  } finally {
+    exportRunning = false;
+    els.exportCancel.hidden = true;
+    els.progress.style.width = "0%";
+    updateTransport();
+  }
+}
+
+// --- wiring -----------------------------------------------------------
+els.open.addEventListener("click", () => els.fileInput.click());
+els.dropzone.addEventListener("click", () => els.fileInput.click());
+els.fileInput.addEventListener("change", () => {
+  if (els.fileInput.files.length) openFile(els.fileInput.files[0]);
+  els.fileInput.value = "";
+});
+["dragover", "dragenter"].forEach((event) =>
+  document.addEventListener(event, (e) => {
+    e.preventDefault();
+    els.dropzone.classList.add("dragover");
+  })
+);
+["dragleave", "drop"].forEach((event) =>
+  document.addEventListener(event, (e) => {
+    e.preventDefault();
+    els.dropzone.classList.remove("dragover");
+  })
+);
+document.addEventListener("drop", (e) => {
+  if (e.dataTransfer.files.length) openFile(e.dataTransfer.files[0]);
+});
+
+els.play.addEventListener("click", () => {
+  if (player.state === "paused") pauseOrResume();
+  else startPlayback(player.index || 0);
+});
+els.pause.addEventListener("click", pauseOrResume);
+els.stop.addEventListener("click", () => stopPlayback());
+els.closeDoc.addEventListener("click", closeDocument);
+
+els.speed.addEventListener("input", () => {
+  els.speedValue.textContent = `${speedValue().toFixed(1)}x`;
+  player.audio.playbackRate = speedValue();
+  saveSettings();
+});
+
+els.voice.addEventListener("change", () => {
+  clearBlobCache();
+  saveSettings();
+  if (player.state === "playing" || player.state === "paused") {
+    const index = player.index;
+    stopPlayback(null);
+    startPlayback(index);
+  }
+});
+
+els.prev.addEventListener("click", () => skipSentence(-1));
+els.next.addEventListener("click", () => skipSentence(1));
+
+els.exportWav.addEventListener("click", () => runExport("wav"));
+els.exportMp3.addEventListener("click", () => runExport("mp3"));
+els.exportCancel.addEventListener("click", () => {
+  api("/api/export/cancel", { method: "POST" }).catch(() => {});
+  setStatus("Cancelling export…");
+});
+
+els.pasteOpen.addEventListener("click", (e) => {
+  e.stopPropagation(); // the surrounding dropzone opens the file picker
+  els.pastePanel.style.display = "block";
+  els.pasteText.focus();
+});
+els.pasteClose.addEventListener("click", () => {
+  els.pastePanel.style.display = "none";
+});
+els.pasteRead.addEventListener("click", openPastedText);
+
+let sleepTimeout = null;
+els.sleep.addEventListener("change", () => {
+  if (sleepTimeout) { clearTimeout(sleepTimeout); sleepTimeout = null; }
+  const minutes = parseInt(els.sleep.value, 10);
+  if (!minutes) { setStatus("Sleep timer off."); return; }
+  sleepTimeout = setTimeout(() => {
+    sleepTimeout = null;
+    els.sleep.value = "0";
+    if (player.state === "playing") pauseOrResume();
+    setStatus("Sleep timer ended — playback paused.");
+  }, minutes * 60000);
+  setStatus(`Sleep timer set: pausing in ${minutes} minutes.`);
+});
+
+function closeVoicePanel() {
+  els.voicePanel.style.display = "none";
+}
+els.addVoice.addEventListener("click", () => {
+  const isOpen = els.voicePanel.style.display === "block";
+  els.voicePanel.style.display = isOpen ? "none" : "block";
+  if (!isOpen && catalog === null) loadCatalog();
+});
+els.voiceClose.addEventListener("click", closeVoicePanel);
+document.addEventListener("click", (e) => {
+  // Click-away dismisses the voice panel (but not clicks inside it or on
+  // the button that toggles it).
+  if (els.voicePanel.style.display !== "block") return;
+  if (els.voicePanel.contains(e.target) || els.addVoice.contains(e.target)) return;
+  closeVoicePanel();
+});
+els.voiceSearch.addEventListener("input", renderCatalog);
+
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Escape") {
+    closeVoicePanel();
+    els.pastePanel.style.display = "none";
+    return;
+  }
+  if (e.target.matches("input, select, button, textarea")) return;
+  if (e.code === "Space") {
+    e.preventDefault();
+    if (player.state === "playing" || player.state === "paused") pauseOrResume();
+    else if (chunksTotal) startPlayback(player.index || 0);
+  } else if (e.code === "ArrowLeft") {
+    e.preventDefault();
+    skipSentence(-1);
+  } else if (e.code === "ArrowRight") {
+    e.preventDefault();
+    skipSentence(1);
+  }
+});
+
+let readingSize = 1.06;
+function applyFontSize() {
+  document.documentElement.style.setProperty("--reading-size", `${readingSize}rem`);
+}
+els.fontDec.addEventListener("click", () => {
+  readingSize = Math.max(0.85, readingSize - 0.07);
+  applyFontSize();
+  saveSettings();
+});
+els.fontInc.addEventListener("click", () => {
+  readingSize = Math.min(1.6, readingSize + 0.07);
+  applyFontSize();
+  saveSettings();
+});
+
+// --- init -------------------------------------------------------------
+(async function init() {
+  if (typeof settings.speed === "number" && settings.speed >= 0.5 && settings.speed <= 2) {
+    els.speed.value = settings.speed;
+    els.speedValue.textContent = `${settings.speed.toFixed(1)}x`;
+  }
+  if (typeof settings.fontSize === "number" && settings.fontSize >= 0.85 && settings.fontSize <= 1.6) {
+    readingSize = settings.fontSize;
+    applyFontSize();
+  }
+  try {
+    const state = await apiJson("/api/state");
+    populateVoices(state.voices);
+    els.exportMp3.hidden = !state.mp3_available;
+    if (state.doc) renderDocument(state.doc);
+    else setStatus("Ready. Open a document to begin.");
+  } catch (err) {
+    setStatus(`Could not reach the Aloud server: ${err.message}`, true);
+  }
+  updateTransport();
+})();
+</script>
+</body>
+</html>

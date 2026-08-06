@@ -1,0 +1,7 @@
+Aloud is a small offline text-to-speech reader built for PDF, TXT, and DOCX documents. It extracts text, splits it into chunks, and synthesizes speech using a local neural voice model.
+
+The quick brown fox jumps over the lazy dog.
+
+This sample file exists to exercise the plain-text extraction path: encoding detection, paragraph splitting, and downstream synthesis. It is intentionally short so tests run quickly.
+
+The final paragraph closes out the fixture with a bit more filler text so the document has a realistic multi-paragraph shape, rather than being a single line repeated for padding.

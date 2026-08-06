@@ -1,0 +1,18 @@
+# Optional fallback TTS engine. Requires the system package `espeak-ng`
+# (e.g. `sudo dnf install espeak-ng` / `sudo apt install espeak-ng`) to be
+# present, or pyttsx3.init() raises RuntimeError. Not installable via pip
+# alone — see docs/DECISIONS.md section 3.
+pyttsx3==2.99
+
+# Optional MP3 export encoder for the GUI's Export dialog. Pure pip
+# install, no system package needed - see docs/DECISIONS.md addendum
+# (TASK-008) for the install/encode evidence. The GUI offers MP3 export
+# only when this is importable; WAV export always works without it.
+lameenc==1.8.4
+
+# Optional OCR for scanned/image-only PDFs. Also requires the system
+# `tesseract` binary (`sudo dnf install tesseract` / `sudo apt install
+# tesseract-ocr`). Without these, scanned PDFs are rejected with a clean
+# error that names what to install.
+pytesseract==0.3.13
+pillow==11.3.0

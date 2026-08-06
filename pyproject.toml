@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aloud-reader"
+version = "0.2.0"
+description = "Offline text-to-speech reader for PDF, EPUB, TXT, DOCX, and HTML documents - free, local, no accounts"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["tts", "text-to-speech", "reader", "piper", "offline", "accessibility"]
+dependencies = [
+    "piper-tts==1.6.0",
+    "sounddevice==0.5.5",
+    "pypdf==6.15.0",
+    "python-docx==1.2.0",
+    "charset-normalizer==3.4.9",
+    "numpy==2.5.1",
+]
+
+[project.optional-dependencies]
+# MP3 export (pure pip wheel, no system package needed).
+mp3 = ["lameenc==1.8.4"]
+# OCR for scanned PDFs; also needs the system tesseract binary.
+ocr = ["pytesseract==0.3.13", "pillow==11.3.0"]
+# Fallback TTS engine; also needs the system espeak-ng package.
+fallback-tts = ["pyttsx3==2.99"]
+dev = ["pytest==9.1.1", "fpdf2==2.8.7"]
+
+[project.scripts]
+aloud = "aloud.__main__:main"
+aloud-web = "aloud.web.__main__:main"
+aloud-gui = "aloud.gui:main"
+aloud-voices = "aloud.voices:main"
+
+[tool.setuptools.packages.find]
+include = ["aloud*"]
+
+[tool.setuptools.package-data]
+"aloud.web" = ["page.html"]

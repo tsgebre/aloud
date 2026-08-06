@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Voice models: 60+ MB each, downloaded per-machine via `aloud-voices`
+# (or the GUI's "Add voice" button) - never committed.
+models/*.onnx
+models/*.onnx.json
+models/*.part
+
+# OS / editor noise
+.DS_Store
+*.swp

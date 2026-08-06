@@ -1,0 +1,1 @@
+This is not a valid PDF file. It has a .pdf extension but its bytes do not form a PDF document structure at all, on purpose, for the error-path test.
