@@ -26,12 +26,12 @@ class _ArgumentParser(argparse.ArgumentParser):
 def _build_parser():
     parser = _ArgumentParser(
         prog="python -m aloud",
-        description="Read PDF/TXT/DOCX/EPUB/HTML documents aloud using offline TTS.",
+        description="Read PDF/TXT/DOCX/EPUB/HTML/LaTeX documents aloud using offline TTS.",
     )
     parser.add_argument(
         "file",
-        help="Path to a .pdf, .txt, .docx, .epub, .html, or .htm file, "
-        "or '-' to read plain text from stdin",
+        help="Path to a .pdf, .txt, .docx, .epub, .html, .htm, .tex, or "
+        ".latex file, or '-' to read plain text from stdin",
     )
     parser.add_argument(
         "-o",

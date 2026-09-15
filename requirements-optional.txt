@@ -16,3 +16,8 @@ lameenc==1.8.4
 # error that names what to install.
 pytesseract==0.3.13
 pillow==11.3.0
+
+# Optional QR code for the browser GUI's LAN mode (`python -m aloud.web
+# --host 0.0.0.0`): prints a scannable code for the phone-friendly link at
+# startup. Pure pip install. Without it, the link is still printed as text.
+qrcode==8.2

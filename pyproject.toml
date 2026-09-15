@@ -25,6 +25,8 @@ mp3 = ["lameenc==1.8.4"]
 ocr = ["pytesseract==0.3.13", "pillow==11.3.0"]
 # Fallback TTS engine; also needs the system espeak-ng package.
 fallback-tts = ["pyttsx3==2.99"]
+# Scannable QR code for the browser GUI's LAN mode (aloud-web --host ...).
+qr = ["qrcode==8.2"]
 dev = ["pytest==9.1.1", "fpdf2==2.8.7"]
 
 [project.scripts]

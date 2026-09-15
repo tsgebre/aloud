@@ -165,7 +165,9 @@ class AloudApp:
     def _on_open(self):
         path = filedialog.askopenfilename(
             title="Open document",
-            filetypes=[("Supported documents", "*.pdf *.txt *.docx *.epub *.html *.htm")],
+            filetypes=[
+                ("Supported documents", "*.pdf *.txt *.docx *.epub *.html *.htm *.tex *.latex")
+            ],
         )
         if not path:
             return

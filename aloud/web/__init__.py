@@ -4,10 +4,13 @@
 default browser. The browser plays the audio itself, so live playback works
 even where Tkinter (needs X11) or PortAudio are unavailable.
 
-Security model: the server only listens on loopback, and every /api request
-must carry the X-Aloud-Token header. The token is generated per run and
-embedded in the served page, so scripts on other origins (which can reach
-localhost but cannot read our responses) cannot drive the API.
+Security model: by default the server only listens on loopback, and every
+/api request must carry the X-Aloud-Token header. The token is generated per
+run and embedded in the served page, so scripts on other origins (which can
+reach localhost but cannot read our responses) cannot drive the API. When
+bound to a non-loopback host ("LAN mode", --host), the page at / itself also
+requires the token, passed as ?t=<token> in the URL — otherwise any device
+on the network could fetch the page and read the embedded token out of it.
 
 Thread-safety: ThreadingHTTPServer handles each request on its own thread.
 `state.lock` guards document/cache mutation; engines are wrapped in
@@ -16,6 +19,7 @@ interleave chunk-by-chunk instead of corrupting the engine or starving
 each other. `state.engine_lock` only guards engine-cache creation.
 """
 
+import base64
 import io
 import json
 import os
@@ -24,6 +28,8 @@ import re
 import secrets
 import tempfile
 import threading
+import urllib.error
+import urllib.request
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -41,12 +47,89 @@ PAGE_PATH = pathlib.Path(__file__).resolve().parent / "page.html"
 
 MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 AUDIO_CACHE_SIZE = 8
+URL_FETCH_TIMEOUT = 30
+
+# Content-Type → the suffix extract_text dispatches on. URLs whose type is
+# missing or unrecognized fall back to the URL path's own suffix, then .html.
+_CONTENT_TYPE_SUFFIXES = {
+    "text/html": ".html",
+    "application/xhtml+xml": ".html",
+    "application/pdf": ".pdf",
+    "text/plain": ".txt",
+    "application/epub+zip": ".epub",
+}
+_URL_PATH_SUFFIXES = {".pdf", ".txt", ".docx", ".epub", ".html", ".htm", ".tex", ".latex"}
 
 _AUDIO_ROUTE_RE = re.compile(r"^/api/audio/(\d+)$")
 
 
 class _ExportCancelled(Exception):
     """Raised inside the export worker when the client asked to cancel."""
+
+
+def _fetch_url(url):
+    """Fetch a user-requested URL; return (display_name, payload).
+
+    This is the one place Aloud touches the network besides voice downloads,
+    and only ever for a URL the user typed in themselves.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise AloudError(f"Only http:// and https:// URLs are supported: {url}")
+    request = urllib.request.Request(
+        url,
+        # Some sites reject urllib's default UA outright; identify honestly
+        # but in a browser-shaped way.
+        headers={"User-Agent": "Mozilla/5.0 (X11; Linux) AloudReader/1.0"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=URL_FETCH_TIMEOUT) as response:
+            content_type = (response.headers.get_content_type() or "").lower()
+            payload = response.read(MAX_UPLOAD_BYTES + 1)
+    except urllib.error.HTTPError as exc:
+        raise AloudError(f"Could not fetch URL (HTTP {exc.code}): {url}") from exc
+    except OSError as exc:
+        reason = getattr(exc, "reason", None) or exc
+        raise AloudError(f"Could not fetch URL: {reason}") from exc
+    if len(payload) > MAX_UPLOAD_BYTES:
+        raise AloudError(f"Page is too large to open: {url}")
+
+    suffix = _CONTENT_TYPE_SUFFIXES.get(content_type)
+    if suffix is None:
+        path_suffix = os.path.splitext(parsed.path)[1].lower()
+        suffix = path_suffix if path_suffix in _URL_PATH_SUFFIXES else ".html"
+    basename = os.path.basename(parsed.path)
+    if os.path.splitext(basename)[1].lower() == suffix:
+        name = basename
+    else:
+        name = (parsed.netloc or "page") + suffix
+    return name, payload
+
+
+def _pick_main_file(files):
+    """Choose which of several uploaded (name, payload) pairs to extract.
+
+    Prefers a LaTeX file that looks like a compilable root (\\documentclass
+    or \\begin{document}), then one literally named main.tex, then any .tex;
+    for non-LaTeX uploads the first file wins.
+    """
+    tex = [
+        (name, payload)
+        for name, payload in files
+        if os.path.splitext(name)[1].lower() in (".tex", ".latex")
+    ]
+    if not tex:
+        return files[0][0]
+    roots = [
+        name
+        for name, payload in tex
+        if b"\\documentclass" in payload or b"\\begin{document}" in payload
+    ]
+    pool = roots or [name for name, _ in tex]
+    for name in pool:
+        if os.path.splitext(os.path.basename(name).lower())[0] == "main":
+            return name
+    return pool[0]
 
 
 def pcm_to_wav_bytes(pcm: bytes, sample_rate: int) -> bytes:
@@ -175,6 +258,27 @@ class WebState:
         finally:
             os.unlink(tmp_path)
         return self._set_document(name, document)
+
+    def load_document_set(self, files):
+        """Open several uploaded files as one document.
+
+        All files land in a shared temp folder so multi-file LaTeX projects
+        (\\input/\\include) resolve their sibling files; the main file is
+        extracted. Names are flattened to basenames — the LaTeX extractor
+        matches subdirectory references by basename as a fallback.
+        """
+        main_name = _pick_main_file(files)
+        with tempfile.TemporaryDirectory(prefix="aloud-doc-") as tmp_dir:
+            main_path = None
+            for name, payload in files:
+                base = os.path.basename(name.replace("\\", "/")) or "upload.bin"
+                target = os.path.join(tmp_dir, base)
+                with open(target, "wb") as out_file:
+                    out_file.write(payload)
+                if name == main_name:
+                    main_path = target
+            document = extract_text(main_path)
+        return self._set_document(main_name, document)
 
     def load_text(self, name, text):
         return self._set_document(name, document_from_text(text, source=name))
@@ -323,6 +427,7 @@ class AloudRequestHandler(BaseHTTPRequestHandler):
     state: WebState = None
     token: str = None
     page_html: str = None
+    lan_mode: bool = False  # non-loopback bind: the page itself needs ?t=<token>
 
     protocol_version = "HTTP/1.1"
 
@@ -355,10 +460,14 @@ class AloudRequestHandler(BaseHTTPRequestHandler):
             self._send_json(500, {"error": f"unexpected failure: {type(exc).__name__}: {exc}"})
 
     def _authorized(self):
-        if self.headers.get("X-Aloud-Token") == self.token:
+        if secrets.compare_digest(self.headers.get("X-Aloud-Token") or "", self.token):
             return True
         self._send_json(403, {"error": "missing or invalid token"})
         return False
+
+    def _page_token_ok(self, parsed):
+        values = parse_qs(parsed.query).get("t", [])
+        return any(secrets.compare_digest(value, self.token) for value in values)
 
     # --- routing ------------------------------------------------------
 
@@ -366,6 +475,17 @@ class AloudRequestHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         try:
             if parsed.path == "/":
+                if self.lan_mode and not self._page_token_ok(parsed):
+                    body = (
+                        b"<!DOCTYPE html><html><meta charset='utf-8'>"
+                        b"<title>Aloud</title><body style='font-family:sans-serif'>"
+                        b"<p>Missing or invalid link token.</p>"
+                        b"<p>Open Aloud using the full link (including the "
+                        b"<code>?t=...</code> part) printed in the terminal where "
+                        b"the server was started.</p></body></html>"
+                    )
+                    self._send_bytes(403, "text/html; charset=utf-8", body)
+                    return
                 body = self.page_html.encode("utf-8")
                 self._send_bytes(200, "text/html; charset=utf-8", body)
                 return
@@ -404,6 +524,10 @@ class AloudRequestHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/open":
                 self._handle_open(parsed)
+            elif parsed.path == "/api/open-multi":
+                self._handle_open_multi()
+            elif parsed.path == "/api/open-url":
+                self._handle_open_url()
             elif parsed.path == "/api/open-text":
                 self._handle_open_text(parsed)
             elif parsed.path == "/api/export":
@@ -454,6 +578,65 @@ class AloudRequestHandler(BaseHTTPRequestHandler):
             return
         payload = self.rfile.read(length)
         try:
+            result = self.state.load_document(name, payload)
+        except (AloudError, Exception) as exc:
+            self._send_error_json(exc)
+            return
+        self._send_json(200, result)
+
+    def _handle_open_multi(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0:
+            self._send_json(400, {"error": "empty upload"})
+            return
+        # base64 in JSON inflates the payload by ~4/3; the decoded total is
+        # checked against MAX_UPLOAD_BYTES below.
+        if length > MAX_UPLOAD_BYTES * 2:
+            self._send_json(413, {"error": "upload too large"})
+            return
+        try:
+            body = json.loads(self.rfile.read(length))
+            entries = body.get("files") or []
+            files = []
+            for entry in entries:
+                name = str(entry.get("name") or "").strip()
+                data = base64.b64decode(entry.get("data") or "", validate=True)
+                if name:
+                    files.append((name, data))
+        except (ValueError, AttributeError, TypeError):
+            self._send_json(400, {"error": "malformed multi-file upload"})
+            return
+        if not files:
+            self._send_json(400, {"error": "no files in upload"})
+            return
+        if sum(len(payload) for _, payload in files) > MAX_UPLOAD_BYTES:
+            self._send_json(413, {"error": "files too large"})
+            return
+        try:
+            result = self.state.load_document_set(files)
+        except (AloudError, Exception) as exc:
+            self._send_error_json(exc)
+            return
+        self._send_json(200, result)
+
+    def _handle_open_url(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0 or length > 64 * 1024:
+            self._send_json(400, {"error": "missing or oversized URL body"})
+            return
+        try:
+            body = json.loads(self.rfile.read(length))
+            url = str(body.get("url") or "").strip()
+        except (ValueError, AttributeError):
+            self._send_json(400, {"error": "malformed URL request"})
+            return
+        if not url:
+            self._send_json(400, {"error": "missing URL"})
+            return
+        if "://" not in url:
+            url = "https://" + url
+        try:
+            name, payload = _fetch_url(url)
             result = self.state.load_document(name, payload)
         except (AloudError, Exception) as exc:
             self._send_error_json(exc)
@@ -599,17 +782,27 @@ class AloudRequestHandler(BaseHTTPRequestHandler):
         )
 
 
-def create_server(port=0, models_dir=None):
-    """Build a ready-to-serve ThreadingHTTPServer bound to 127.0.0.1.
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+
+
+def create_server(port=0, models_dir=None, host="127.0.0.1"):
+    """Build a ready-to-serve ThreadingHTTPServer bound to `host`.
 
     Returns the server; the per-run auth token is available as
     `server.RequestHandlerClass.token` and is already embedded in the page.
+    With a non-loopback `host` the server runs in LAN mode: GET / requires
+    the token as a ?t=<token> query parameter (see the module docstring).
     """
     token = secrets.token_urlsafe(16)
     page_html = PAGE_PATH.read_text(encoding="utf-8").replace("__ALOUD_TOKEN__", token)
     handler = type(
         "BoundAloudRequestHandler",
         (AloudRequestHandler,),
-        {"state": WebState(models_dir=models_dir), "token": token, "page_html": page_html},
+        {
+            "state": WebState(models_dir=models_dir),
+            "token": token,
+            "page_html": page_html,
+            "lan_mode": host not in LOOPBACK_HOSTS,
+        },
     )
-    return ThreadingHTTPServer(("127.0.0.1", port), handler)
+    return ThreadingHTTPServer((host, port), handler)

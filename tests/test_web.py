@@ -103,6 +103,92 @@ def test_open_txt_returns_blocks_and_chunks(server):
     assert state["doc"]["chunks_total"] == result["chunks_total"]
 
 
+def test_open_multi_resolves_latex_inputs(server):
+    import base64
+
+    main_tex = (
+        b"\\documentclass{article}\\begin{document}"
+        b"\\input{intro}\\input{sections/methods}\\end{document}"
+    )
+    intro_tex = b"\\section{Introduction}\nOpening words."
+    methods_tex = b"\\section{Methods}\nMethod details."
+    body = json.dumps(
+        {
+            "files": [
+                {"name": "intro.tex", "data": base64.b64encode(intro_tex).decode()},
+                {"name": "main.tex", "data": base64.b64encode(main_tex).decode()},
+                # Flattened upload of a subdirectory file: matched by basename.
+                {"name": "methods.tex", "data": base64.b64encode(methods_tex).decode()},
+            ]
+        }
+    ).encode()
+    result = _request_json(server, "/api/open-multi", method="POST", body=body)
+    assert result["name"] == "main.tex"
+    flat = [c for b in result["blocks"] for c in b["chunks"]]
+    assert any("Opening words." in c for c in flat)
+    assert any("Method details." in c for c in flat)
+    headings = [b for b in result["blocks"] if b["kind"] == "heading"]
+    assert len(headings) == 2
+
+
+def test_open_url_fetches_and_extracts_html(server):
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    page = (
+        b"<html><head><title>A Web Article</title></head>"
+        b"<body><h1>A Web Article</h1><p>Words fetched over HTTP.</p>"
+        b"<script>never.read();</script></body></html>"
+    )
+
+    class _Page(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(page)
+
+        def log_message(self, *args):
+            pass
+
+    origin = HTTPServer(("127.0.0.1", 0), _Page)
+    thread = threading.Thread(target=origin.serve_forever, daemon=True)
+    thread.start()
+    try:
+        url = f"http://127.0.0.1:{origin.server_address[1]}/article"
+        body = json.dumps({"url": url}).encode()
+        result = _request_json(server, "/api/open-url", method="POST", body=body)
+    finally:
+        origin.shutdown()
+        origin.server_close()
+
+    flat = [c for b in result["blocks"] for c in b["chunks"]]
+    assert any("Words fetched over HTTP." in c for c in flat)
+    assert not any("never.read();" in c for c in flat)
+
+
+def test_open_url_rejects_non_http_scheme(server):
+    body = json.dumps({"url": "ftp://example.com/file.txt"}).encode()
+    with pytest.raises(urllib.error.HTTPError) as excinfo:
+        _request(server, "/api/open-url", method="POST", body=body)
+    assert excinfo.value.code == 400
+    assert "http" in json.loads(excinfo.value.read())["error"].lower()
+
+
+def test_open_url_unreachable_gives_clean_error(server):
+    # Port 9 (discard) on loopback: nothing listens there.
+    body = json.dumps({"url": "http://127.0.0.1:9/"}).encode()
+    with pytest.raises(urllib.error.HTTPError) as excinfo:
+        _request(server, "/api/open-url", method="POST", body=body)
+    assert excinfo.value.code == 400
+    assert "Could not fetch URL" in json.loads(excinfo.value.read())["error"]
+
+
+def test_open_multi_rejects_malformed_body(server):
+    with pytest.raises(urllib.error.HTTPError) as excinfo:
+        _request(server, "/api/open-multi", method="POST", body=b"not json")
+    assert excinfo.value.code == 400
+
+
 def test_open_unsupported_extension_gives_clean_400(server):
     with pytest.raises(urllib.error.HTTPError) as excinfo:
         _request(server, "/api/open?name=notes.xyz", method="POST", body=b"hello")
@@ -206,3 +292,47 @@ def test_export_bad_format_gives_400(server):
             headers={"Content-Type": "application/json"},
         )
     assert excinfo.value.code == 400
+
+
+# --- LAN mode (--host) ------------------------------------------------------
+
+
+@pytest.fixture()
+def lan_server():
+    server = create_server(port=0, host="0.0.0.0")
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield server
+    server.shutdown()
+    server.server_close()
+
+
+def test_lan_mode_page_requires_url_token(lan_server):
+    port = lan_server.server_address[1]
+    with pytest.raises(urllib.error.HTTPError) as excinfo:
+        urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=30)
+    assert excinfo.value.code == 403
+    body = excinfo.value.read().decode("utf-8")
+    assert lan_server.RequestHandlerClass.token not in body
+
+
+def test_lan_mode_page_rejects_wrong_url_token(lan_server):
+    port = lan_server.server_address[1]
+    with pytest.raises(urllib.error.HTTPError) as excinfo:
+        urllib.request.urlopen(f"http://127.0.0.1:{port}/?t=wrong", timeout=30)
+    assert excinfo.value.code == 403
+
+
+def test_lan_mode_page_served_with_url_token(lan_server):
+    port = lan_server.server_address[1]
+    token = lan_server.RequestHandlerClass.token
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}/?t={token}", timeout=30) as response:
+        html = response.read().decode("utf-8")
+    assert "<title>Aloud</title>" in html
+    assert token in html
+
+
+def test_lan_mode_api_still_requires_header_token(lan_server):
+    with pytest.raises(urllib.error.HTTPError) as excinfo:
+        _request(lan_server, "/api/state", with_token=False)
+    assert excinfo.value.code == 403

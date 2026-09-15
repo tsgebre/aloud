@@ -14,11 +14,24 @@
     --accent-soft: #b4552d22;
     --highlight: #f4e3b2;
     --border: #e3ded2;
+    --error: #c0392b;
     --shadow: 0 1px 3px rgba(40, 30, 10, 0.08), 0 8px 24px rgba(40, 30, 10, 0.06);
     --radius: 12px;
   }
+  [data-theme="dark"] {
+    --bg: #191817;
+    --surface: #232120;
+    --text: #e8e4dc;
+    --text-dim: #98938a;
+    --accent: #e07a4a;
+    --accent-soft: #e07a4a2b;
+    --highlight: #4a3b1c;
+    --border: #363330;
+    --error: #e57368;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --bg: #191817;
       --surface: #232120;
       --text: #e8e4dc;
@@ -27,6 +40,7 @@
       --accent-soft: #e07a4a2b;
       --highlight: #4a3b1c;
       --border: #363330;
+      --error: #e57368;
       --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
     }
   }
@@ -43,13 +57,13 @@
 
   /* --- header ------------------------------------------------------ */
   header {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
     padding: 12px 20px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
   }
   .brand {
     display: flex;
@@ -69,8 +83,8 @@
     place-items: center;
     font-size: 1rem;
   }
-  header label { color: var(--text-dim); font-size: 0.85rem; }
-  select, button {
+  label { color: var(--text-dim); font-size: 0.85rem; }
+  select, button, input[type="text"], input[type="search"] {
     font: inherit;
     color: var(--text);
     background: var(--surface);
@@ -78,28 +92,67 @@
     border-radius: 8px;
     padding: 7px 12px;
   }
-  select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  button { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+  select:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  button { cursor: pointer; transition: background 0.15s, border-color 0.15s; min-height: 36px; }
   button:hover:not(:disabled) { border-color: var(--accent); }
   button:disabled { opacity: 0.45; cursor: default; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
   button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  button.icon-btn { padding: 7px 10px; min-width: 40px; }
+
+  /* --- popovers (settings, overflow menu) --------------------------- */
+  .popover {
+    position: absolute;
+    right: 14px;
+    z-index: 40;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+    min-width: 240px;
+  }
+  #settings-pop { top: calc(100% + 6px); }
+  #more-menu { bottom: calc(100% + 8px); padding: 8px; }
+  .pop-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 0;
+  }
+  .pop-row > label { flex-shrink: 0; }
+  .pop-row select { max-width: 200px; }
   .font-controls { display: flex; gap: 4px; }
-  .font-controls button { padding: 7px 10px; }
+  #more-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 9px 12px;
+    border-radius: 8px;
+  }
+  #more-menu button:hover:not(:disabled) { background: var(--accent-soft); }
 
   /* --- main / reading pane ---------------------------------------- */
   main { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
   .pane {
     max-width: 46rem;
     margin: 0 auto;
-    padding: 28px 24px 140px;
+    padding: 28px 24px 160px;
   }
+
+  /* --- empty state -------------------------------------------------- */
   #dropzone {
-    margin-top: 8vh;
+    margin-top: 6vh;
     border: 2px dashed var(--border);
     border-radius: var(--radius);
     background: var(--surface);
-    padding: 64px 32px;
+    padding: 56px 32px;
     text-align: center;
     color: var(--text-dim);
     cursor: pointer;
@@ -109,7 +162,32 @@
   #dropzone .big { font-size: 2.4rem; margin-bottom: 12px; }
   #dropzone strong { color: var(--text); font-size: 1.05rem; }
   #dropzone p { margin: 6px 0 0; font-size: 0.9rem; }
+  .alt-sources {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .alt-sources .url-row { display: flex; flex: 1; gap: 8px; }
+  .alt-sources #url-input { flex: 1; min-width: 0; background: var(--surface); }
 
+  /* --- resume banner ------------------------------------------------ */
+  #resume-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 0.92rem;
+  }
+  #resume-banner .spacer { flex: 1; }
+  #resume-banner button { padding: 5px 14px; }
+
+  /* --- article ------------------------------------------------------ */
   #article {
     display: none;
     background: var(--surface);
@@ -140,39 +218,34 @@
     color: var(--text-dim);
     font-size: 0.85rem;
   }
-  .doc-name button { padding: 4px 10px; font-size: 0.85rem; }
+  .doc-name button { padding: 4px 10px; font-size: 0.85rem; min-height: 0; }
 
-  /* --- voice panel -------------------------------------------------- */
-  #voice-panel {
-    display: none;
-    background: var(--surface);
+  /* --- dialogs (voice, paste, shortcuts) ---------------------------- */
+  dialog {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
+    background: var(--surface);
+    color: var(--text);
     padding: 18px 20px;
-    margin-bottom: 20px;
+    width: min(580px, calc(100vw - 32px));
   }
-  #voice-panel h2 { margin: 0; font-size: 1.05rem; }
-  #voice-panel .hint { color: var(--text-dim); font-size: 0.82rem; margin: 4px 0 12px; }
+  dialog::backdrop { background: rgba(20, 15, 8, 0.4); }
+  dialog h2 { margin: 0; font-size: 1.05rem; }
   .panel-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
   }
-  .panel-head button { padding: 4px 10px; font-size: 0.9rem; }
+  .panel-head button { padding: 4px 10px; font-size: 0.9rem; min-height: 0; }
+  .hint { color: var(--text-dim); font-size: 0.82rem; margin: 4px 0 12px; }
   #voice-search {
     width: 100%;
-    font: inherit;
-    color: var(--text);
     background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
     margin-bottom: 10px;
   }
-  #voice-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  #voice-list { max-height: 40vh; overflow-y: auto; }
+  #voice-list { max-height: 46vh; overflow-y: auto; }
   .voice-row {
     display: flex;
     align-items: center;
@@ -183,20 +256,8 @@
   }
   .voice-row .vid { flex: 1; font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 0.83rem; overflow-wrap: anywhere; }
   .voice-row .meta { color: var(--text-dim); font-size: 0.8rem; white-space: nowrap; }
-  .voice-row button { padding: 4px 12px; font-size: 0.85rem; }
+  .voice-row button { padding: 4px 12px; font-size: 0.85rem; min-height: 0; }
   .voice-row .installed-mark { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
-
-  /* --- paste panel -------------------------------------------------- */
-  #paste-panel {
-    display: none;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 18px 20px;
-    margin-bottom: 20px;
-  }
-  #paste-panel h2 { margin: 0 0 10px; font-size: 1.05rem; }
   #paste-text {
     width: 100%;
     font: inherit;
@@ -206,10 +267,20 @@
     border-radius: 8px;
     padding: 10px 12px;
     resize: vertical;
-    margin-bottom: 10px;
+    margin: 10px 0;
   }
   #paste-text:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .paste-actions { display: flex; gap: 8px; }
+  #shortcuts-panel table { border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+  #shortcuts-panel td { padding: 5px 14px 5px 0; }
+  #shortcuts-panel kbd {
+    font-family: ui-monospace, monospace;
+    font-size: 0.82rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 2px 7px;
+  }
 
   /* --- player bar --------------------------------------------------- */
   footer {
@@ -218,40 +289,67 @@
     background: var(--surface);
     border-top: 1px solid var(--border);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
-    padding: 10px 20px 12px;
+    padding: 6px 20px 10px;
   }
-  .progress {
-    height: 4px;
-    border-radius: 2px;
+  #seek {
+    padding: 6px 0;
+    cursor: pointer;
+  }
+  #seek .track {
+    height: 5px;
+    border-radius: 3px;
     background: var(--border);
     overflow: hidden;
-    margin-bottom: 10px;
   }
-  .progress > div {
+  #seek:hover .track { height: 7px; margin: -1px 0; }
+  #progress-bar {
     height: 100%;
     width: 0%;
     background: var(--accent);
-    border-radius: 2px;
+    border-radius: 3px;
     transition: width 0.25s;
   }
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    min-height: 1.1em;
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
   .controls {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
-    flex-wrap: wrap;
   }
-  .controls .transport { display: flex; gap: 6px; }
-  .transport button { width: 44px; height: 40px; font-size: 1.05rem; padding: 0; }
+  .transport { display: flex; align-items: center; gap: 8px; }
+  .transport button {
+    width: 44px; height: 44px;
+    font-size: 1.05rem;
+    padding: 0;
+    border-radius: 50%;
+  }
+  #play {
+    width: 54px; height: 54px;
+    font-size: 1.25rem;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  #play:hover:not(:disabled) { filter: brightness(1.08); }
   .speed {
     display: flex;
     align-items: center;
     gap: 8px;
     color: var(--text-dim);
     font-size: 0.85rem;
-    margin-left: 6px;
+    margin-left: 8px;
   }
-  .speed input[type="range"] { accent-color: var(--accent); width: 130px; }
+  .speed input[type="range"] { accent-color: var(--accent); width: 120px; }
   .speed .value { min-width: 3ch; color: var(--text); font-variant-numeric: tabular-nums; }
+  #sleep-remaining { color: var(--accent); font-variant-numeric: tabular-nums; font-size: 0.85rem; }
   .spacer { flex: 1; }
   #status {
     width: 100%;
@@ -259,57 +357,124 @@
     font-size: 0.82rem;
     margin-top: 6px;
     min-height: 1.1em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  #status.error { color: #c0392b; }
-  @media (prefers-color-scheme: dark) { #status.error { color: #e57368; } }
+  #status.error { color: var(--error); }
+
+  /* --- toasts ------------------------------------------------------- */
+  #toasts {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: min(380px, calc(100vw - 32px));
+  }
+  .toast {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--error);
+    border-left-width: 4px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 11px 14px;
+    font-size: 0.88rem;
+    cursor: pointer;
+    animation: toast-in 0.2s ease-out;
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+  }
+
   input[type="file"] { display: none; }
+  [hidden] { display: none !important; }
+
+  /* --- narrow screens ----------------------------------------------- */
+  @media (max-width: 640px) {
+    header { padding: 10px 12px; }
+    .pane { padding: 20px 14px 180px; }
+    #article { padding: 24px 20px; }
+    #dropzone { margin-top: 2vh; padding: 40px 20px; }
+    .alt-sources { flex-direction: column; align-items: stretch; }
+    footer { padding: 6px 12px 10px; }
+    .controls { flex-wrap: wrap; row-gap: 6px; }
+    .speed { margin-left: 0; }
+    .speed input[type="range"] { width: 90px; }
+    .sleep-wrap label { display: none; }
+    button { min-height: 44px; }
+    .doc-name button, .voice-row button, .panel-head button { min-height: 36px; }
+    dialog {
+      width: 100vw;
+      max-width: 100vw;
+      margin: auto 0 0;
+      border-radius: 16px 16px 0 0;
+      border-left: none; border-right: none; border-bottom: none;
+    }
+    #toasts { right: 8px; left: 8px; max-width: none; }
+    .popover { right: 8px; }
+  }
 </style>
 </head>
 <body>
 
 <header>
   <div class="brand"><span class="logo">&#128266;</span> Aloud</div>
-  <label for="voice">Voice</label>
-  <select id="voice" title="Piper voice model (from the models/ folder)"></select>
-  <button id="add-voice" title="Download more free voices (many languages)">&#65291; Add voice</button>
-  <div class="font-controls" title="Reading text size">
-    <button id="font-dec" aria-label="Smaller text">A&#8722;</button>
-    <button id="font-inc" aria-label="Larger text">A+</button>
-  </div>
+  <button class="icon-btn" id="settings-btn" title="Voice, text size &amp; theme" aria-label="Settings" aria-haspopup="true">&#9881;&#65039;</button>
   <button class="primary" id="open-btn">Open&#8230;</button>
+  <div class="popover" id="settings-pop" hidden>
+    <div class="pop-row">
+      <label for="voice">Voice</label>
+      <select id="voice" title="Piper voice model (from the models/ folder)"></select>
+    </div>
+    <div class="pop-row">
+      <span></span>
+      <button id="add-voice" title="Download more free voices (many languages)">&#65291; Add voice</button>
+    </div>
+    <div class="pop-row">
+      <label>Text size</label>
+      <div class="font-controls">
+        <button class="icon-btn" id="font-dec" aria-label="Smaller text">A&#8722;</button>
+        <button class="icon-btn" id="font-inc" aria-label="Larger text">A+</button>
+      </div>
+    </div>
+    <div class="pop-row">
+      <label>Theme</label>
+      <button id="theme-btn" title="Cycle between auto, light and dark">Auto</button>
+    </div>
+  </div>
 </header>
 
 <main>
   <div class="pane">
-    <div id="voice-panel">
-      <div class="panel-head">
-        <h2>Add a voice</h2>
-        <button id="voice-close" aria-label="Close" title="Close (Esc)">&#10005;</button>
+    <div id="empty-state">
+      <div id="dropzone">
+        <div class="big">&#128218;</div>
+        <strong>Drop a PDF, EPUB, TXT, DOCX, HTML, or LaTeX file here</strong>
+        <p>or click to browse your files</p>
+        <p>multi-file LaTeX project? drop main.tex together with its section files</p>
       </div>
-      <p class="hint">
-        Free, MIT-licensed Piper voices in dozens of languages, downloaded once
-        from the public rhasspy/piper-voices repository (internet needed only
-        for the download &#8212; reading stays fully offline).
-      </p>
-      <input id="voice-search" type="search"
-             placeholder="Search by language or name &#8212; e.g. german, en_GB, ryan&#8230;">
-      <div id="voice-list"><p class="hint">Loading catalog&#8230;</p></div>
-    </div>
-    <div id="dropzone">
-      <div class="big">&#128218;</div>
-      <strong>Drop a PDF, EPUB, TXT, DOCX, or HTML file here</strong>
-      <p>or click to browse your files</p>
-      <p><button id="paste-open">&#9998; Or paste text instead</button></p>
-    </div>
-    <div id="paste-panel">
-      <h2>Read pasted text</h2>
-      <textarea id="paste-text" rows="9"
-                placeholder="Paste or type any text here&#8230;"></textarea>
-      <div class="paste-actions">
-        <button class="primary" id="paste-read">&#9654; Read this</button>
-        <button id="paste-close">Cancel</button>
+      <div class="alt-sources">
+        <button id="paste-open">&#9998; Paste text</button>
+        <div class="url-row">
+          <input type="text" id="url-input" placeholder="https://example.com/article"
+                 aria-label="Web address to read">
+          <button id="url-open">&#127760; Open URL</button>
+        </div>
       </div>
     </div>
+
+    <div id="resume-banner" hidden>
+      <span id="resume-label"></span>
+      <span class="spacer"></span>
+      <button class="primary" id="resume-yes">&#9654; Resume</button>
+      <button id="resume-no">Start over</button>
+    </div>
+
     <div class="doc-name" id="doc-name-row">
       <span id="doc-name"></span>
       <button id="close-doc">Close</button>
@@ -319,21 +484,25 @@
 </main>
 
 <footer>
-  <div class="progress"><div id="progress-bar"></div></div>
+  <div id="seek" title="Jump anywhere in the document">
+    <div class="track"><div id="progress-bar"></div></div>
+  </div>
+  <div class="progress-meta">
+    <span id="pos-label"></span>
+    <span id="time-left"></span>
+  </div>
   <div class="controls">
     <div class="transport">
-      <button id="prev" title="Previous sentence (&#8592;)" disabled>&#9198;</button>
-      <button id="play" title="Play (Space)" disabled>&#9654;</button>
-      <button id="pause" title="Pause (Space)" disabled>&#10074;&#10074;</button>
-      <button id="stop" title="Stop" disabled>&#9632;</button>
-      <button id="next" title="Next sentence (&#8594;)" disabled>&#9197;</button>
+      <button id="prev" title="Previous sentence (&#8592;)" aria-label="Previous sentence" disabled>&#9198;</button>
+      <button id="play" title="Play / pause (Space)" aria-label="Play" disabled>&#9654;</button>
+      <button id="next" title="Next sentence (&#8594;)" aria-label="Next sentence" disabled>&#9197;</button>
     </div>
     <div class="speed">
       <label for="speed">Speed</label>
       <input type="range" id="speed" min="0.5" max="2" step="0.1" value="1">
       <span class="value" id="speed-value">1.0x</span>
     </div>
-    <div class="speed">
+    <div class="speed sleep-wrap">
       <label for="sleep">Sleep</label>
       <select id="sleep" title="Pause playback automatically after this long">
         <option value="0">Off</option>
@@ -342,16 +511,65 @@
         <option value="45">45 min</option>
         <option value="60">60 min</option>
       </select>
+      <span id="sleep-remaining" hidden></span>
     </div>
     <div class="spacer"></div>
-    <button id="export-wav" disabled>&#11015; Export WAV</button>
-    <button id="export-mp3" disabled hidden>&#11015; Export MP3</button>
     <button id="export-cancel" hidden>&#10005; Cancel export</button>
-    <div id="status">Loading&#8230;</div>
+    <button class="icon-btn" id="more-btn" title="Export &amp; more" aria-label="More actions" aria-haspopup="true">&#8943;</button>
+    <div class="popover" id="more-menu" hidden>
+      <button id="export-wav" disabled>&#11015; Export WAV</button>
+      <button id="export-mp3" disabled hidden>&#11015; Export MP3</button>
+      <button id="shortcuts-open">&#9000; Keyboard shortcuts</button>
+    </div>
   </div>
+  <div id="status" role="status" aria-live="polite">Loading&#8230;</div>
 </footer>
 
-<input type="file" id="file-input" accept=".pdf,.txt,.docx,.epub,.html,.htm">
+<div id="toasts" aria-live="assertive"></div>
+
+<dialog id="voice-panel" aria-labelledby="voice-panel-title">
+  <div class="panel-head">
+    <h2 id="voice-panel-title">Add a voice</h2>
+    <button id="voice-close" aria-label="Close" title="Close (Esc)">&#10005;</button>
+  </div>
+  <p class="hint">
+    Free, MIT-licensed Piper voices in dozens of languages, downloaded once
+    from the public rhasspy/piper-voices repository (internet needed only
+    for the download &#8212; reading stays fully offline).
+  </p>
+  <input id="voice-search" type="search"
+         placeholder="Search by language or name &#8212; e.g. german, en_GB, ryan&#8230;">
+  <div id="voice-list"><p class="hint">Loading catalog&#8230;</p></div>
+</dialog>
+
+<dialog id="paste-panel" aria-labelledby="paste-panel-title">
+  <div class="panel-head">
+    <h2 id="paste-panel-title">Read pasted text</h2>
+    <button id="paste-close" aria-label="Close" title="Close (Esc)">&#10005;</button>
+  </div>
+  <textarea id="paste-text" rows="9"
+            placeholder="Paste or type any text here&#8230;"></textarea>
+  <div class="paste-actions">
+    <button class="primary" id="paste-read">&#9654; Read this</button>
+  </div>
+</dialog>
+
+<dialog id="shortcuts-panel" aria-labelledby="shortcuts-panel-title">
+  <div class="panel-head">
+    <h2 id="shortcuts-panel-title">Keyboard shortcuts</h2>
+    <button id="shortcuts-close" aria-label="Close" title="Close (Esc)">&#10005;</button>
+  </div>
+  <table>
+    <tr><td><kbd>Space</kbd></td><td>Play / pause</td></tr>
+    <tr><td><kbd>&#8592;</kbd> / <kbd>&#8594;</kbd></td><td>Previous / next sentence</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Close dialogs and menus</td></tr>
+    <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
+  </table>
+  <p class="hint" style="margin-top:12px">Tip: click any sentence in the text to start reading from there,
+  and click the progress bar to jump anywhere.</p>
+</dialog>
+
+<input type="file" id="file-input" accept=".pdf,.txt,.docx,.epub,.html,.htm,.tex,.latex" multiple>
 
 <script>
 "use strict";
@@ -360,18 +578,30 @@ const TOKEN = "__ALOUD_TOKEN__";
 const $ = (id) => document.getElementById(id);
 const els = {
   voice: $("voice"), open: $("open-btn"), dropzone: $("dropzone"),
+  emptyState: $("empty-state"),
   article: $("article"), docNameRow: $("doc-name-row"), docName: $("doc-name"),
-  closeDoc: $("close-doc"), play: $("play"), pause: $("pause"), stop: $("stop"),
+  closeDoc: $("close-doc"), play: $("play"),
   speed: $("speed"), speedValue: $("speed-value"), exportWav: $("export-wav"),
   exportMp3: $("export-mp3"), status: $("status"), progress: $("progress-bar"),
+  seek: $("seek"), posLabel: $("pos-label"), timeLeft: $("time-left"),
   fileInput: $("file-input"), fontDec: $("font-dec"), fontInc: $("font-inc"),
   addVoice: $("add-voice"), voicePanel: $("voice-panel"),
   voiceSearch: $("voice-search"), voiceList: $("voice-list"),
   voiceClose: $("voice-close"),
   prev: $("prev"), next: $("next"), sleep: $("sleep"),
+  sleepRemaining: $("sleep-remaining"),
   exportCancel: $("export-cancel"), pasteOpen: $("paste-open"),
   pastePanel: $("paste-panel"), pasteText: $("paste-text"),
   pasteRead: $("paste-read"), pasteClose: $("paste-close"),
+  urlInput: $("url-input"), urlOpen: $("url-open"),
+  settingsBtn: $("settings-btn"), settingsPop: $("settings-pop"),
+  themeBtn: $("theme-btn"),
+  moreBtn: $("more-btn"), moreMenu: $("more-menu"),
+  shortcutsOpen: $("shortcuts-open"), shortcutsPanel: $("shortcuts-panel"),
+  shortcutsClose: $("shortcuts-close"),
+  resumeBanner: $("resume-banner"), resumeLabel: $("resume-label"),
+  resumeYes: $("resume-yes"), resumeNo: $("resume-no"),
+  toasts: $("toasts"),
 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -388,9 +618,20 @@ async function api(path, options = {}) {
 }
 const apiJson = async (path, options) => (await api(path, options)).json();
 
+function toast(message) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = message;
+  el.title = "Dismiss";
+  el.addEventListener("click", () => el.remove());
+  els.toasts.appendChild(el);
+  setTimeout(() => el.remove(), 6000);
+}
+
 function setStatus(message, isError = false) {
   els.status.textContent = message;
   els.status.classList.toggle("error", isError);
+  if (isError && message) toast(message);
 }
 
 // --- persistent settings & positions (localStorage) -------------------
@@ -411,6 +652,7 @@ function saveSettings() {
   settings.speed = speedValue();
   settings.voice = els.voice.value;
   settings.fontSize = readingSize;
+  settings.theme = theme;
   store(SETTINGS_KEY, settings);
 }
 
@@ -430,6 +672,16 @@ function savePosition(index) {
 function savedPosition() {
   const entry = loadStored(POSITIONS_KEY, {})[currentDocKey];
   return entry ? entry.index : 0;
+}
+
+// --- theme ------------------------------------------------------------
+const THEMES = ["auto", "light", "dark"];
+const THEME_LABELS = { auto: "&#9680; Auto", light: "&#9728;&#65039; Light", dark: "&#127769; Dark" };
+let theme = THEMES.includes(settings.theme) ? settings.theme : "auto";
+function applyTheme() {
+  if (theme === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", theme);
+  els.themeBtn.innerHTML = THEME_LABELS[theme];
 }
 
 // --- app state --------------------------------------------------------
@@ -507,12 +759,25 @@ function fetchChunkUrl(index) {
   return promise;
 }
 
+function updateMeta(index) {
+  if (!chunksTotal) {
+    els.posLabel.textContent = "";
+    els.timeLeft.textContent = "";
+    els.progress.style.width = "0%";
+    return;
+  }
+  els.posLabel.textContent = `Sentence ${index + 1} of ${chunksTotal}`;
+  els.timeLeft.textContent = remainingLabel(index);
+  const done = (charsPrefix[index] || 0) + (chunkChars[index] || 0);
+  els.progress.style.width = `${(done / totalChars) * 100}%`;
+}
+
 async function playChunk(index) {
   player.index = index;
   highlight(index);
   savePosition(index);
-  setStatus(`Reading sentence ${index + 1} of ${chunksTotal} · ${remainingLabel(index)}`);
-  els.progress.style.width = `${((index + 1) / chunksTotal) * 100}%`;
+  updateMeta(index);
+  setStatus(`Reading sentence ${index + 1} of ${chunksTotal}`);
   try {
     const url = await fetchChunkUrl(index);
     if (player.state !== "playing" || player.index !== index) return; // stale
@@ -528,14 +793,21 @@ async function playChunk(index) {
 
 function updateTransport() {
   const hasDoc = chunksTotal > 0;
-  els.play.disabled = !hasDoc || player.state === "playing";
-  els.pause.disabled = player.state !== "playing" && player.state !== "paused";
-  els.stop.disabled = player.state === "idle" || player.state === "finished";
+  const playing = player.state === "playing";
+  els.play.disabled = !hasDoc;
+  els.play.textContent = playing ? "❘❘" : "▶";
+  els.play.setAttribute("aria-label", playing ? "Pause" : "Play");
   els.prev.disabled = !hasDoc;
   els.next.disabled = !hasDoc;
-  els.exportWav.disabled = !hasDoc;
-  els.exportMp3.disabled = !hasDoc;
+  els.exportWav.disabled = !hasDoc || exportRunning;
+  els.exportMp3.disabled = !hasDoc || exportRunning;
+  if ("mediaSession" in navigator) {
+    navigator.mediaSession.playbackState =
+      playing ? "playing" : (player.state === "paused" ? "paused" : "none");
+  }
 }
+
+function hideResumeBanner() { els.resumeBanner.hidden = true; }
 
 function skipSentence(delta) {
   if (!chunksTotal) return;
@@ -546,12 +818,14 @@ function skipSentence(delta) {
     player.index = target;
     highlight(target);
     savePosition(target);
+    updateMeta(target);
     setStatus(`Sentence ${target + 1} of ${chunksTotal} — press Play.`);
   }
 }
 
 function startPlayback(fromIndex) {
   if (!chunksTotal) return;
+  hideResumeBanner();
   player.state = "playing";
   updateTransport();
   playChunk(fromIndex);
@@ -566,9 +840,14 @@ function pauseOrResume() {
     player.state = "playing";
     player.audio.playbackRate = speedValue();
     player.audio.play().catch((err) => setStatus(err.message, true));
-    setStatus(`Reading sentence ${player.index + 1} of ${chunksTotal} · ${remainingLabel(player.index)}`);
+    setStatus(`Reading sentence ${player.index + 1} of ${chunksTotal}`);
   }
   updateTransport();
+}
+
+function playPauseAction() {
+  if (player.state === "playing" || player.state === "paused") pauseOrResume();
+  else if (chunksTotal) startPlayback(player.index || 0);
 }
 
 function stopPlayback(message = "Ready.") {
@@ -577,6 +856,8 @@ function stopPlayback(message = "Ready.") {
   player.state = "idle";
   player.index = 0;
   highlight(-1);
+  updateMeta(chunksTotal ? 0 : -1);
+  if (!chunksTotal) { els.posLabel.textContent = ""; els.timeLeft.textContent = ""; }
   els.progress.style.width = "0%";
   updateTransport();
   if (message) setStatus(message);
@@ -587,6 +868,45 @@ function highlight(index) {
   if (index >= 0 && chunkEls[index]) {
     chunkEls[index].scrollIntoView({ block: "center", behavior: "smooth" });
   }
+}
+
+// --- seeking ----------------------------------------------------------
+els.seek.addEventListener("click", (e) => {
+  if (!chunksTotal) return;
+  const rect = els.seek.getBoundingClientRect();
+  const fraction = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+  const targetChars = fraction * totalChars;
+  let index = 0;
+  while (index + 1 < chunksTotal && charsPrefix[index + 1] <= targetChars) index += 1;
+  hideResumeBanner();
+  if (player.state === "playing" || player.state === "paused") {
+    startPlayback(index);
+  } else {
+    player.index = index;
+    highlight(index);
+    savePosition(index);
+    updateMeta(index);
+    setStatus(`Sentence ${index + 1} of ${chunksTotal} — press Play.`);
+  }
+});
+
+// --- media session (lock screen / hardware media keys) ----------------
+function updateMediaSessionMetadata(name) {
+  if (!("mediaSession" in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: name || "Aloud",
+      artist: "Aloud",
+    });
+  } catch (e) { /* older browsers */ }
+}
+if ("mediaSession" in navigator) {
+  try {
+    navigator.mediaSession.setActionHandler("play", playPauseAction);
+    navigator.mediaSession.setActionHandler("pause", playPauseAction);
+    navigator.mediaSession.setActionHandler("previoustrack", () => skipSentence(-1));
+    navigator.mediaSession.setActionHandler("nexttrack", () => skipSentence(1));
+  } catch (e) { /* unsupported action */ }
 }
 
 // --- document loading -------------------------------------------------
@@ -621,17 +941,74 @@ function renderDocument(doc) {
   countedChunks = new Set();
   els.docName.textContent =
     `${doc.name} — ${chunksTotal} sentences · ${listenTimeLabel(totalChars)} listen`;
-  els.dropzone.style.display = "none";
+  els.emptyState.hidden = true;
   els.docNameRow.style.display = "flex";
   els.article.style.display = "block";
   stopPlayback(`Loaded ${doc.name}.`);
+  updateMediaSessionMetadata(doc.name);
 
   currentDocKey = `${doc.name}|${chunksTotal}`;
   const resumeAt = savedPosition();
   if (resumeAt > 0 && resumeAt < chunksTotal) {
     player.index = resumeAt;
     highlight(resumeAt);
-    setStatus(`Resuming at sentence ${resumeAt + 1} of ${chunksTotal} — press Play.`);
+    updateMeta(resumeAt);
+    els.resumeLabel.textContent =
+      `You stopped at sentence ${resumeAt + 1} of ${chunksTotal} (${remainingLabel(resumeAt)}).`;
+    els.resumeBanner.hidden = false;
+  } else {
+    hideResumeBanner();
+  }
+}
+
+async function openFiles(files) {
+  if (files.length === 1) return openFile(files[0]);
+  // Multi-file LaTeX projects: send everything so \input/\include resolve.
+  stopPlayback(null);
+  clearBlobCache();
+  currentDocKey = null;
+  setStatus(`Opening ${files.length} files…`);
+  try {
+    const encoded = [];
+    for (const file of files) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = "";
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK)
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+      encoded.push({ name: file.webkitRelativePath || file.name, data: btoa(binary) });
+    }
+    const doc = await apiJson("/api/open-multi", {
+      method: "POST",
+      body: JSON.stringify({ files: encoded }),
+    });
+    renderDocument(doc);
+  } catch (err) {
+    setStatus(err.message, true);
+    updateTransport();
+  }
+}
+
+async function openUrl() {
+  const url = els.urlInput.value.trim();
+  if (!url) {
+    setStatus("Type a URL first.", true);
+    return;
+  }
+  stopPlayback(null);
+  clearBlobCache();
+  currentDocKey = null;
+  setStatus(`Fetching ${url}…`);
+  try {
+    const doc = await apiJson("/api/open-url", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    });
+    els.urlInput.value = "";
+    renderDocument(doc);
+  } catch (err) {
+    setStatus(err.message, true);
+    updateTransport();
   }
 }
 
@@ -664,7 +1041,7 @@ async function openPastedText() {
   setStatus("Preparing pasted text…");
   try {
     const doc = await apiJson("/api/open-text", { method: "POST", body: text });
-    els.pastePanel.style.display = "none";
+    els.pastePanel.close();
     renderDocument(doc);
   } catch (err) {
     setStatus(err.message, true);
@@ -682,11 +1059,26 @@ function closeDocument() {
   totalChars = 0;
   countedChunks = new Set();
   currentDocKey = null;
+  hideResumeBanner();
   els.article.style.display = "none";
   els.docNameRow.style.display = "none";
-  els.dropzone.style.display = "block";
+  els.emptyState.hidden = false;
+  els.posLabel.textContent = "";
+  els.timeLeft.textContent = "";
+  els.progress.style.width = "0%";
   updateTransport();
   setStatus("Ready.");
+}
+
+// --- voice names ------------------------------------------------------
+function voiceLabel(fileName) {
+  const id = fileName.replace(/\.onnx$/, "");
+  const match = id.match(/^([a-z]{2,3}(?:_[A-Z]{2})?)-(.+)-(x_low|low|medium|high)$/);
+  if (!match) return id;
+  const [, code, rawName, quality] = match;
+  const name = rawName.split(/[_-]/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  return `${name} (${code}, ${quality.replace("_", "-")})`;
 }
 
 // --- voice catalog / download -----------------------------------------
@@ -699,7 +1091,7 @@ function populateVoices(voiceNames) {
     for (const name of voiceNames) {
       const option = document.createElement("option");
       option.value = name;
-      option.textContent = name.replace(/\.onnx$/, "");
+      option.textContent = voiceLabel(name);
       els.voice.appendChild(option);
     }
     const wanted = previous || settings.voice;
@@ -786,8 +1178,8 @@ async function downloadVoice(voice, button) {
       if (status.state === "running") {
         const mb = Math.round(status.received / 1048576);
         const pct = status.total ? ` ${Math.round((status.received / status.total) * 100)}%` : "";
+        button.textContent = `Downloading…${pct}`;
         setStatus(`Downloading ${status.file || voice.id}…${pct} (${mb} MB)`);
-        if (status.total) els.progress.style.width = `${(status.received / status.total) * 100}%`;
       } else if (status.state === "done") {
         voice.installed = true;
         renderCatalog();
@@ -813,7 +1205,6 @@ async function downloadVoice(voice, button) {
     button.disabled = false;
     button.textContent = "Download";
   }
-  els.progress.style.width = "0%";
 }
 
 // --- export -----------------------------------------------------------
@@ -822,6 +1213,7 @@ let exportRunning = false;
 async function runExport(fmt) {
   if (exportRunning) return;
   exportRunning = true;
+  els.moreMenu.hidden = true;
   els.exportWav.disabled = true;
   els.exportMp3.disabled = true;
   els.exportCancel.hidden = false;
@@ -837,8 +1229,8 @@ async function runExport(fmt) {
       const status = await apiJson("/api/export/status");
       if (status.state === "running") {
         if (status.total) {
-          setStatus(`Exporting ${fmt.toUpperCase()}… ${status.index}/${status.total}`);
-          els.progress.style.width = `${(status.index / status.total) * 100}%`;
+          const pct = Math.round((status.index / status.total) * 100);
+          setStatus(`Exporting ${fmt.toUpperCase()}… ${status.index}/${status.total} (${pct}%)`);
         }
       } else if (status.state === "done") {
         const response = await api("/api/export/file");
@@ -868,7 +1260,6 @@ async function runExport(fmt) {
   } finally {
     exportRunning = false;
     els.exportCancel.hidden = true;
-    els.progress.style.width = "0%";
     updateTransport();
   }
 }
@@ -877,7 +1268,7 @@ async function runExport(fmt) {
 els.open.addEventListener("click", () => els.fileInput.click());
 els.dropzone.addEventListener("click", () => els.fileInput.click());
 els.fileInput.addEventListener("change", () => {
-  if (els.fileInput.files.length) openFile(els.fileInput.files[0]);
+  if (els.fileInput.files.length) openFiles(Array.from(els.fileInput.files));
   els.fileInput.value = "";
 });
 ["dragover", "dragenter"].forEach((event) =>
@@ -893,20 +1284,26 @@ els.fileInput.addEventListener("change", () => {
   })
 );
 document.addEventListener("drop", (e) => {
-  if (e.dataTransfer.files.length) openFile(e.dataTransfer.files[0]);
+  if (e.dataTransfer.files.length) openFiles(Array.from(e.dataTransfer.files));
 });
 
-els.play.addEventListener("click", () => {
-  if (player.state === "paused") pauseOrResume();
-  else startPlayback(player.index || 0);
-});
-els.pause.addEventListener("click", pauseOrResume);
-els.stop.addEventListener("click", () => stopPlayback());
+els.play.addEventListener("click", playPauseAction);
 els.closeDoc.addEventListener("click", closeDocument);
+
+els.resumeYes.addEventListener("click", () => startPlayback(player.index || 0));
+els.resumeNo.addEventListener("click", () => {
+  hideResumeBanner();
+  savePosition(0);
+  player.index = 0;
+  highlight(-1);
+  updateMeta(0);
+  setStatus("Starting from the top — press Play.");
+});
 
 els.speed.addEventListener("input", () => {
   els.speedValue.textContent = `${speedValue().toFixed(1)}x`;
   player.audio.playbackRate = speedValue();
+  if (chunksTotal) updateMeta(player.index);
   saveSettings();
 });
 
@@ -930,23 +1327,98 @@ els.exportCancel.addEventListener("click", () => {
   setStatus("Cancelling export…");
 });
 
-els.pasteOpen.addEventListener("click", (e) => {
-  e.stopPropagation(); // the surrounding dropzone opens the file picker
-  els.pastePanel.style.display = "block";
+// --- popovers ---------------------------------------------------------
+function closePopovers() {
+  els.settingsPop.hidden = true;
+  els.moreMenu.hidden = true;
+}
+els.settingsBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const wasOpen = !els.settingsPop.hidden;
+  closePopovers();
+  els.settingsPop.hidden = wasOpen;
+});
+els.moreBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const wasOpen = !els.moreMenu.hidden;
+  closePopovers();
+  els.moreMenu.hidden = wasOpen;
+});
+document.addEventListener("click", (e) => {
+  if (!els.settingsPop.hidden && !els.settingsPop.contains(e.target)) els.settingsPop.hidden = true;
+  if (!els.moreMenu.hidden && !els.moreMenu.contains(e.target)) els.moreMenu.hidden = true;
+});
+
+els.themeBtn.addEventListener("click", () => {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  applyTheme();
+  saveSettings();
+});
+
+// --- dialogs ----------------------------------------------------------
+function wireDialog(dialog) {
+  // Click on the backdrop (the dialog element itself, outside its content)
+  // closes it, matching the old click-away behavior. Esc works natively.
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) dialog.close();
+  });
+}
+wireDialog(els.voicePanel);
+wireDialog(els.pastePanel);
+wireDialog(els.shortcutsPanel);
+
+els.pasteOpen.addEventListener("click", () => {
+  els.pastePanel.showModal();
   els.pasteText.focus();
 });
-els.pasteClose.addEventListener("click", () => {
-  els.pastePanel.style.display = "none";
-});
+els.pasteClose.addEventListener("click", () => els.pastePanel.close());
 els.pasteRead.addEventListener("click", openPastedText);
 
+els.urlInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") openUrl();
+});
+els.urlOpen.addEventListener("click", openUrl);
+
+els.addVoice.addEventListener("click", () => {
+  closePopovers();
+  els.voicePanel.showModal();
+  if (catalog === null) loadCatalog();
+});
+els.voiceClose.addEventListener("click", () => els.voicePanel.close());
+els.voiceSearch.addEventListener("input", renderCatalog);
+
+els.shortcutsOpen.addEventListener("click", () => {
+  closePopovers();
+  els.shortcutsPanel.showModal();
+});
+els.shortcutsClose.addEventListener("click", () => els.shortcutsPanel.close());
+
+// --- sleep timer ------------------------------------------------------
 let sleepTimeout = null;
-els.sleep.addEventListener("change", () => {
+let sleepDeadline = 0;
+let sleepTicker = null;
+
+function clearSleepTimer() {
   if (sleepTimeout) { clearTimeout(sleepTimeout); sleepTimeout = null; }
+  if (sleepTicker) { clearInterval(sleepTicker); sleepTicker = null; }
+  els.sleepRemaining.hidden = true;
+}
+function updateSleepLabel() {
+  const left = Math.max(0, sleepDeadline - Date.now());
+  const minutes = Math.floor(left / 60000);
+  const seconds = Math.floor((left % 60000) / 1000);
+  els.sleepRemaining.textContent = `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+els.sleep.addEventListener("change", () => {
+  clearSleepTimer();
   const minutes = parseInt(els.sleep.value, 10);
   if (!minutes) { setStatus("Sleep timer off."); return; }
+  sleepDeadline = Date.now() + minutes * 60000;
+  els.sleepRemaining.hidden = false;
+  updateSleepLabel();
+  sleepTicker = setInterval(updateSleepLabel, 1000);
   sleepTimeout = setTimeout(() => {
-    sleepTimeout = null;
+    clearSleepTimer();
     els.sleep.value = "0";
     if (player.state === "playing") pauseOrResume();
     setStatus("Sleep timer ended — playback paused.");
@@ -954,44 +1426,30 @@ els.sleep.addEventListener("change", () => {
   setStatus(`Sleep timer set: pausing in ${minutes} minutes.`);
 });
 
-function closeVoicePanel() {
-  els.voicePanel.style.display = "none";
-}
-els.addVoice.addEventListener("click", () => {
-  const isOpen = els.voicePanel.style.display === "block";
-  els.voicePanel.style.display = isOpen ? "none" : "block";
-  if (!isOpen && catalog === null) loadCatalog();
-});
-els.voiceClose.addEventListener("click", closeVoicePanel);
-document.addEventListener("click", (e) => {
-  // Click-away dismisses the voice panel (but not clicks inside it or on
-  // the button that toggles it).
-  if (els.voicePanel.style.display !== "block") return;
-  if (els.voicePanel.contains(e.target) || els.addVoice.contains(e.target)) return;
-  closeVoicePanel();
-});
-els.voiceSearch.addEventListener("input", renderCatalog);
-
+// --- keyboard ---------------------------------------------------------
 document.addEventListener("keydown", (e) => {
   if (e.code === "Escape") {
-    closeVoicePanel();
-    els.pastePanel.style.display = "none";
-    return;
+    closePopovers();
+    return; // open <dialog>s close themselves on Esc
   }
   if (e.target.matches("input, select, button, textarea")) return;
+  if (document.querySelector("dialog[open]")) return;
   if (e.code === "Space") {
     e.preventDefault();
-    if (player.state === "playing" || player.state === "paused") pauseOrResume();
-    else if (chunksTotal) startPlayback(player.index || 0);
+    playPauseAction();
   } else if (e.code === "ArrowLeft") {
     e.preventDefault();
     skipSentence(-1);
   } else if (e.code === "ArrowRight") {
     e.preventDefault();
     skipSentence(1);
+  } else if (e.key === "?") {
+    e.preventDefault();
+    els.shortcutsPanel.showModal();
   }
 });
 
+// --- text size --------------------------------------------------------
 let readingSize = 1.06;
 function applyFontSize() {
   document.documentElement.style.setProperty("--reading-size", `${readingSize}rem`);
@@ -1009,6 +1467,7 @@ els.fontInc.addEventListener("click", () => {
 
 // --- init -------------------------------------------------------------
 (async function init() {
+  applyTheme();
   if (typeof settings.speed === "number" && settings.speed >= 0.5 && settings.speed <= 2) {
     els.speed.value = settings.speed;
     els.speedValue.textContent = `${settings.speed.toFixed(1)}x`;

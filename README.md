@@ -1,6 +1,6 @@
 # Aloud
 
-Aloud reads your PDF, EPUB, TXT, DOCX, and HTML documents aloud, entirely
+Aloud reads your PDF, EPUB, TXT, DOCX, HTML, and LaTeX documents aloud, entirely
 on your own computer — no cloud account, no subscription, no internet
 connection needed once it's set up. Point it at a document, and it turns the text into a
 natural-sounding narration you can listen to or save as an audio file.
@@ -25,7 +25,7 @@ Or install Aloud as a package (adds the `aloud`, `aloud-web`, `aloud-gui`,
 and `aloud-voices` commands to your PATH — `pipx install .` works too):
 
 ```sh
-pip install .            # add .[mp3] for MP3 export support
+pip install .            # extras: .[mp3] MP3 export, .[qr] LAN-mode QR code
 ```
 
 When installed as a package (rather than run from this checkout), voice
@@ -52,7 +52,8 @@ python -m aloud.voices list german     # filter by language or name
 ```
 
 The browser GUI has the same thing built in: the **＋ Add voice** button
-lists the catalog with search, and downloads straight into `models/`.
+(under ⚙ settings) lists the catalog with search, and downloads straight
+into `models/`.
 
 <details>
 <summary>Manual alternative (curl)</summary>
@@ -99,6 +100,10 @@ This adds:
   (`sudo dnf install tesseract` / `sudo apt install tesseract-ocr`).
   Without it, scanned PDFs are rejected with a clean error naming exactly
   what to install.
+- **`qrcode`** — prints a scannable QR code for the phone-friendly link when
+  the browser GUI runs in LAN mode (`python -m aloud.web --host 0.0.0.0`).
+  Pure Python wheel, no system dependency; without it the link is printed
+  as plain text.
 - **`pyttsx3`** — an offline fallback voice using the system `espeak-ng`.
   Only used if you explicitly request `--engine pyttsx3`, or if Piper
   itself is unavailable. Requires `espeak-ng`/`espeak` to be installed at
@@ -120,11 +125,11 @@ usage: python -m aloud [-h] [-o OUTPUT] [--dump-text] [--voice VOICE]
                        [--quiet]
                        file
 
-Read PDF/TXT/DOCX/EPUB/HTML documents aloud using offline TTS.
+Read PDF/TXT/DOCX/EPUB/HTML/LaTeX documents aloud using offline TTS.
 
 positional arguments:
-  file                  Path to a .pdf, .txt, .docx, .epub, .html, or .htm
-                        file, or '-' to read plain text from stdin
+  file                  Path to a .pdf, .txt, .docx, .epub, .html, .htm, .tex,
+                        or .latex file, or '-' to read plain text from stdin
 
 options:
   -h, --help            show this help message and exit
@@ -191,7 +196,7 @@ $ python -m aloud samples/corrupt.pdf -o out.wav
 error: Could not read PDF file: samples/corrupt.pdf
 
 $ python -m aloud notes.xyz -o out.wav   # assuming notes.xyz exists
-error: Unsupported file format '.xyz'. Supported formats: .docx, .epub, .htm, .html, .pdf, .txt
+error: Unsupported file format '.xyz'. Supported formats: .docx, .epub, .htm, .html, .latex, .pdf, .tex, .txt
 ```
 
 ## GUI usage (browser, recommended)
@@ -207,33 +212,78 @@ without PortAudio, and the GUI itself works on Wayland, over SSH port
 forwarding, or anywhere else Tkinter's X11 requirement is a problem.
 
 - **Open a document** — drag-and-drop a `.pdf`/`.epub`/`.txt`/`.docx`/
-  `.html` anywhere on the page, or click the drop zone / **Open...** button.
-- **Paste text** — the drop zone's *"Or paste text instead"* button opens a
-  text box, so you can listen to any text without saving a file first.
-- **Read aloud** — press **Play** (or the spacebar); the sentence currently
-  being read is highlighted and kept in view, with an estimated listening
-  time remaining in the status line. Click any sentence to start reading
-  from there, or step sentence-by-sentence with the ⏮/⏭ buttons (arrow
-  keys work too).
+  `.html`/`.tex` anywhere on the page, or click the drop zone / **Open...**
+  button. For a multi-file LaTeX project (`main.tex` with `\input`/
+  `\include`d section files), select or drop **all the files together** —
+  the browser can't see files you didn't hand it, so the section files
+  must be part of the selection. Aloud figures out which one is the main
+  file and assembles the full document.
+- **Paste text** — the **✏ Paste text** button below the drop zone opens a
+  dialog, so you can listen to any text without saving a file first.
+- **Open a URL** — type or paste a web address into the URL box below the
+  drop zone and Aloud fetches the page and reads it (works for online PDFs
+  and `.txt` files too, by Content-Type). This is the one feature that goes
+  online besides voice downloads, and only ever for a URL you typed
+  yourself — everything else stays fully offline. Heavily script-rendered
+  pages may extract poorly; for those, copy the text and use *paste text*
+  instead.
+- **Read aloud** — press the big **play/pause** button (or the spacebar);
+  the sentence currently being read is highlighted and kept in view, with
+  the current sentence number and estimated listening time remaining shown
+  above the controls. Click any sentence to start reading from there, step
+  sentence-by-sentence with the ⏮/⏭ buttons (arrow keys work too), or
+  **click anywhere on the progress bar** to jump straight there. Press
+  `?` for a keyboard-shortcut overview. On phones and tablets, the play
+  bar also hooks into the system media controls (lock screen / headphone
+  buttons).
 - **Sleep timer** — pause playback automatically after 15/30/45/60 minutes,
-  for listening in bed.
+  for listening in bed; a live countdown shows while it's armed.
 - **Resume where you left off** — Aloud remembers your position per
-  document (and your speed/voice/text-size choices) in the browser's local
-  storage; reopen the same file and it offers to pick up at the sentence
-  you stopped at.
+  document (and your speed/voice/text-size/theme choices) in the browser's
+  local storage; reopen the same file and a banner offers **Resume** at the
+  sentence you stopped at, or **Start over**.
 - **Speed** — 0.5x–2.0x, applied live during playback (no re-synthesis) and
   to exports.
-- **Voice** — pick any `.onnx` model found in `models/`, or click
-  **＋ Add voice** to browse and download more (many languages) from the
-  free Piper catalog without leaving the app.
-- **Text size** — `A−` / `A+` buttons adjust the reading pane.
-- **Export** — download the full narration as WAV (always) or MP3 (if
-  `lameenc` is installed), with sentence-level progress and a Cancel
-  button for long documents.
+- **Settings (⚙ in the header)** — pick any `.onnx` voice found in
+  `models/` (shown with friendly names), click **＋ Add voice** to browse
+  and download more (many languages) from the free Piper catalog without
+  leaving the app, adjust the reading text size with `A−` / `A+`, and
+  switch the theme between Auto (follow the system), Light, and Dark.
+- **Export (⋯ menu in the play bar)** — download the full narration as WAV
+  (always) or MP3 (if `lameenc` is installed), with sentence-level progress
+  and a Cancel button for long documents.
 
 Options: `--port N` (default: pick a free port), `--no-browser` (print the
-URL only). The server is per-run token-protected and only ever listens on
-loopback.
+URL only), `--host ADDR` (see below). By default the server is per-run
+token-protected and only listens on loopback.
+
+### Listening on your phone (LAN mode)
+
+```sh
+python -m aloud.web --host 0.0.0.0
+```
+
+This lets other devices on your local network — a phone on the couch, a
+tablet in bed — use the full GUI in their own browser while your computer
+does the synthesizing. At startup Aloud prints a link containing a per-run
+access token, plus a QR code to scan if the optional `qrcode` package is
+installed (`pip install qrcode`; without it the link is still printed as
+text):
+
+```
+Aloud is running at http://127.0.0.1:34787/?t=Kq3...
+On a phone or another device on this network, open:
+  http://192.168.1.23:34787/?t=Kq3...
+█▀▀▀▀▀█ ... (scan me)
+Note: anyone on your network with this exact link can use Aloud while it runs.
+```
+
+In LAN mode the page itself requires the token (the `?t=...` part of the
+link), so other devices on the network can't use Aloud without the full
+link — keep the whole URL when bookmarking. Use `--host <address>` with one
+specific interface address to listen on just that network. The token
+changes every run, and playback position still syncs per device (it lives
+in each browser's local storage).
 
 ## GUI usage (Tkinter desktop window)
 
@@ -245,8 +295,8 @@ Requires a working X11 display (on Wayland, this means XWayland). If you
 see `error: cannot start GUI: no display name and no $DISPLAY environment
 variable`, use `python -m aloud.web` instead.
 
-- **Open...** — pick a `.pdf`/`.txt`/`.docx` file; its extracted text
-  appears in the reading pane.
+- **Open...** — pick a `.pdf`/`.txt`/`.docx`/`.epub`/`.html`/`.tex` file;
+  its extracted text appears in the reading pane.
 - **Voice** — choose any `.onnx` voice model found in `models/`, or
   **Browse...** to pick one elsewhere.
 - **Play / Pause / Stop** — narrate the loaded document. Disabled with an
@@ -323,7 +373,20 @@ PortAudio and espeak-ng installed), every test should run rather than skip.
   the OCR extras are installed (see **Optional extras**); text-layer
   extraction is always preferred when present.
 - **No RTF or plain-Markdown** support — supported formats are PDF, EPUB,
-  TXT, DOCX, and HTML.
+  TXT, DOCX, HTML, and LaTeX (`.tex`/`.latex`).
+- **LaTeX is read as prose, not typeset output.** The `.tex` source is
+  stripped in pure Python: sections become headings, text-styling macros
+  keep their text, and figures/tables reduce to their captions.
+  Cross-references are resolved to their numbers by replaying LaTeX's
+  counters (`Section~\ref{sec:x}` → "Section 2.1", `\eqref` → "(3)",
+  `\autoref`/`\cref` supported); undefined labels are dropped.
+  Multi-file projects are assembled: `\input`/`\include`/`\subfile`
+  files are spliced in (relative to the main file's folder; in the
+  browser GUI, upload the main file and its section files together)
+  and sections/references number correctly across files. Inline
+  math is read literally (`$E=mc^2$` → "E=mc^2"), while display math,
+  tables, and code listings are skipped — there is no spoken form for
+  them. For math-heavy papers, compiling to PDF first may narrate better.
 - **No DRM-protected files** — encrypted/password-protected PDFs and
   DRM-protected EPUBs are detected and rejected with a clear error, not
   decrypted.
@@ -336,10 +399,10 @@ PortAudio and espeak-ng installed), every test should run rather than skip.
 
 | Symptom | What you'll see | What to do |
 |---|---|---|
-| No voice model downloaded | `error: No Piper voice model (.onnx) found in .../models. Download one first - see docs/DECISIONS.md for the exact curl command ...` | Run `python -m aloud.voices download en_US-lessac-medium` (or use the GUI's **＋ Add voice** button). |
+| No voice model downloaded | `error: No Piper voice model (.onnx) found in .../models. Download one first - see docs/DECISIONS.md for the exact curl command ...` | Run `python -m aloud.voices download en_US-lessac-medium` (or use the GUI's **＋ Add voice** button, under ⚙ settings). |
 | No display (Tkinter GUI: Wayland without XWayland, SSH, etc.) | `error: cannot start GUI: no display name and no $DISPLAY environment variable` | Use the browser GUI instead: `python -m aloud.web`. It needs no display server at all. |
 | No audio device / PortAudio missing | GUI shows: *"Playback unavailable (no audio device found) - you can still export to a file."* Play/Pause/Stop are disabled. | Install PortAudio (see **System prerequisites**) if you want live playback; export and the CLI work regardless. |
 | Encrypted/password-protected PDF | `error: PDF is password-protected: <path>` | Remove the password protection first (Aloud won't attempt to decrypt it). |
 | Scanned/image-only PDF | `error: No extractable text found in <path> (scanned/image-only PDFs need OCR - install the system 'tesseract' package plus 'pip install pytesseract pillow' to enable it)` | Install the OCR extras (see **Optional extras**) and retry — Aloud will then OCR the page images itself. |
-| Unsupported file extension | `error: Unsupported file format '.xyz'. Supported formats: .docx, .epub, .htm, .html, .pdf, .txt` | Convert the file to one of the supported formats. |
+| Unsupported file extension | `error: Unsupported file format '.xyz'. Supported formats: .docx, .epub, .htm, .html, .latex, .pdf, .tex, .txt` | Convert the file to one of the supported formats. |
 | `pyttsx3` fallback requested but unavailable | `error: pyttsx3 fallback is unavailable: the system 'espeak-ng' (or 'espeak') package is not installed. ...` | Install `espeak-ng` (see **Optional extras**), or just use the default Piper engine. |

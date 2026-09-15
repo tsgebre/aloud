@@ -7,6 +7,7 @@ from aloud.extract import docx as _docx
 from aloud.extract import epub as _epub
 from aloud.extract import html as _html
 from aloud.extract import pdf as _pdf
+from aloud.extract import tex as _tex
 from aloud.extract import txt as _txt
 from aloud.extract.base import Block, Document
 from aloud.extract.txt import document_from_text
@@ -18,6 +19,8 @@ _DISPATCH = {
     ".epub": _epub.extract,
     ".html": _html.extract,
     ".htm": _html.extract,
+    ".tex": _tex.extract,
+    ".latex": _tex.extract,
 }
 
 
